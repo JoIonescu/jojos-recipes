@@ -21,469 +21,514 @@
     html, body { height: 100%; overscroll-behavior: none; }
     body { background: #f5f0e8; font-family: 'Crimson Pro', Georgia, serif; color: #2c2416; -webkit-font-smoothing: antialiased; }
     #root { height: 100%; }
+    #err { display:none; padding:24px; font-family:monospace; font-size:13px; color:#c00; background:#fff8f8; white-space:pre-wrap; }
     @keyframes spin { to { transform: rotate(360deg); } }
   </style>
 </head>
 <body>
+<div id="err"></div>
 <div id="root"></div>
 <script>
+  window.onerror = function(msg, src, line, col, err) {
+    var el = document.getElementById("err");
+    el.style.display = "block";
+    el.textContent = "JS ERROR:\n" + msg + "\nLine: " + line + "\n" + (err ? err.stack : "");
+  };
   var manifest = { name:"Jojo's Recipes", short_name:"Jojo's Recipes", start_url:"./", display:"standalone", background_color:"#f5f0e8", theme_color:"#2c2416", icons:[{src:"icon.svg",sizes:"any",type:"image/svg+xml",purpose:"any maskable"}] };
   var blob = new Blob([JSON.stringify(manifest)],{type:"application/json"});
   var ml = document.createElement("link"); ml.rel="manifest"; ml.href=URL.createObjectURL(blob); document.head.appendChild(ml);
   if("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(function(){});
 </script>
-<script type="text/babel">
-var useState = React.useState;
-var useRef   = React.useRef;
+<script type="text/babel" data-presets="react">
+
+var useState  = React.useState;
+var useRef    = React.useRef;
 var useEffect = React.useEffect;
+var e         = React.createElement;
 
 var DB_KEY  = “jojos-recipes-v1”;
 var KEY_KEY = “jojos-api-key”;
+var C = { cream:”#f5f0e8”, dark:”#2c2416”, orange:”#c4854a”, tan:”#ede7d8”, border:”#d6cbb8”, muted:”#8a7a62”, light:”#e8d9b8”, green:”#4a8a4a” };
 
-function loadRecipes() { try { return JSON.parse(localStorage.getItem(DB_KEY)||”[]”); } catch(e){ return []; } }
-function saveRecipes(list) {
+// ── Data helpers ─────────────────────────────────────────────────────────────
+function loadRecipes() {
+try {
+var list = JSON.parse(localStorage.getItem(DB_KEY) || “[]”);
+// migrate old records
+return list.map(function(r) {
+if (!r.photos) r.photos = [null, null];
+if (r.done === undefined) r.done = false;
+if (!r.myNotes) r.myNotes = “”;
+return r;
+});
+} catch(err) { return []; }
+}
+function persistRecipes(list) {
 var sorted = list.slice().sort(function(a,b){ return a.name.localeCompare(b.name); });
-localStorage.setItem(DB_KEY, JSON.stringify(sorted));
+try { localStorage.setItem(DB_KEY, JSON.stringify(sorted)); } catch(err) { alert(“Storage full — try removing some recipe photos.”); }
 return sorted;
 }
 
-var SYSTEM = ‘You are a recipe extraction assistant. Return ONLY a valid JSON object, no markdown fences, no extra text. Use this exact structure: {“name”:“Recipe Name”,“category”:“Main/Dessert/Breakfast/Snack/Soup/Salad”,“cuisine”:“Italian/French/Asian/etc”,“servings”:4,“prepTime”:“15 min”,“cookTime”:“30 min”,“ingredients”:[“item 1”,“item 2”],“steps”:[“First step”,“Second step”],“notes”:“Optional tips from the original recipe”}’;
+// ── API ──────────────────────────────────────────────────────────────────────
+var SYSTEM = ‘You are a recipe extraction assistant. Return ONLY a valid JSON object, no markdown, no fences. Structure: {“name”:“Recipe Name”,“category”:“Main/Dessert/Breakfast/Snack/Soup/Salad”,“cuisine”:“Italian/French/Asian/etc”,“servings”:4,“prepTime”:“15 min”,“cookTime”:“30 min”,“ingredients”:[“item 1”,“item 2”],“steps”:[“First step”,“Second step”],“notes”:“Optional original tips”}’;
 
 async function callClaude(messages, apiKey) {
 var res = await fetch(“https://api.anthropic.com/v1/messages”, {
-method:“POST”,
-headers:{“Content-Type”:“application/json”,“x-api-key”:apiKey,“anthropic-version”:“2023-06-01”,“anthropic-dangerous-direct-browser-access”:“true”},
-body:JSON.stringify({model:“claude-sonnet-4-20250514”,max_tokens:1500,system:SYSTEM,messages:messages})
+method: “POST”,
+headers: {
+“Content-Type”: “application/json”,
+“x-api-key”: apiKey,
+“anthropic-version”: “2023-06-01”,
+“anthropic-dangerous-direct-browser-access”: “true”
+},
+body: JSON.stringify({ model:“claude-sonnet-4-20250514”, max_tokens:1500, system:SYSTEM, messages:messages })
 });
 var data = await res.json();
-if(data.error) throw new Error(data.error.message);
-var texts = (data.content||[]).filter(function(b){return b.type===“text”;});
-if(!texts.length) throw new Error(“No text response”);
-return texts.map(function(b){return b.text;}).join(””);
+if (data.error) throw new Error(data.error.message);
+var texts = (data.content || []).filter(function(b){ return b.type === “text”; });
+if (!texts.length) throw new Error(“Empty response”);
+return texts.map(function(b){ return b.text; }).join(””);
 }
 
-async function fetchURL(url) {
-var res = await fetch(“https://r.jina.ai/”+url,{headers:{“Accept”:“text/plain”}});
-if(!res.ok) throw new Error(“Could not fetch page”);
-return (await res.text()).slice(0,12000);
-}
-
-async function extractFromURL(url,apiKey) {
-var pageText = await fetchURL(url);
-var raw = await callClaude([{role:“user”,content:“Extract the recipe from this webpage content:\n\n”+pageText}],apiKey);
+async function extractFromURL(url, apiKey) {
+var jinaRes = await fetch(“https://r.jina.ai/” + url, { headers:{ “Accept”:“text/plain” } });
+if (!jinaRes.ok) throw new Error(“Cannot fetch page”);
+var pageText = (await jinaRes.text()).slice(0, 12000);
+var raw = await callClaude([{ role:“user”, content:“Extract the recipe from this webpage:\n\n” + pageText }], apiKey);
 return JSON.parse(raw.replace(/`json|`/g,””).trim());
 }
 
-async function extractFromImage(b64,mime,apiKey) {
-var raw = await callClaude([{role:“user”,content:[{type:“image”,source:{type:“base64”,media_type:mime,data:b64}},{type:“text”,text:“Extract the recipe from this image.”}]}],apiKey);
+async function extractFromImage(b64, mime, apiKey) {
+var raw = await callClaude([{ role:“user”, content:[
+{ type:“image”, source:{ type:“base64”, media_type:mime, data:b64 } },
+{ type:“text”, text:“Extract the recipe from this image.” }
+]}], apiKey);
 return JSON.parse(raw.replace(/`json|`/g,””).trim());
 }
 
-// Compress image to reasonable size for localStorage
 async function compressImage(file) {
-return new Promise(function(resolve,reject) {
+return new Promise(function(resolve, reject) {
 var reader = new FileReader();
-reader.onload = function(e) {
+reader.onload = function(ev) {
 var img = new Image();
 img.onload = function() {
+var MAX = 800, w = img.width, h = img.height;
+if (w > h) { if (w > MAX) { h = Math.round(h * MAX / w); w = MAX; } }
+else { if (h > MAX) { w = Math.round(w * MAX / h); h = MAX; } }
 var canvas = document.createElement(“canvas”);
-var MAX = 800;
-var w = img.width, h = img.height;
-if(w > h) { if(w>MAX){h=h*(MAX/w);w=MAX;} } else { if(h>MAX){w=w*(MAX/h);h=MAX;} }
-canvas.width=w; canvas.height=h;
-canvas.getContext(“2d”).drawImage(img,0,0,w,h);
-resolve(canvas.toDataURL(“image/jpeg”,0.7));
+canvas.width = w; canvas.height = h;
+canvas.getContext(“2d”).drawImage(img, 0, 0, w, h);
+resolve(canvas.toDataURL(“image/jpeg”, 0.72));
 };
 img.onerror = reject;
-img.src = e.target.result;
+img.src = ev.target.result;
 };
 reader.onerror = reject;
 reader.readAsDataURL(file);
 });
 }
 
-var C = { cream:”#f5f0e8”, dark:”#2c2416”, orange:”#c4854a”, tan:”#ede7d8”, border:”#d6cbb8”, muted:”#8a7a62”, light:”#e8d9b8”, green:”#5a8a5a” };
+// ── Small UI helpers ──────────────────────────────────────────────────────────
+function Div(props) { return React.createElement(“div”, props); }
+
+function SectionTitle(props) {
+return React.createElement(“div”, {
+style:{ fontFamily:”‘Cormorant Garamond’,serif”, fontSize:13, fontWeight:600, letterSpacing:“0.18em”, textTransform:“uppercase”, color:C.orange, marginTop:22, marginBottom:10, paddingBottom:6, borderBottom:“1px solid #e8e0d0” }
+}, props.children);
+}
 
 function Pill(props) {
-return <span style={{background:props.accent?C.orange:“rgba(255,255,255,0.13)”,color:props.accent?”#fff”:”#c9bfae”,padding:“4px 12px”,borderRadius:20,fontSize:13}}>{props.children}</span>;
-}
-function Tag(props) {
-return <span style={{background:props.accent?C.orange:C.tan,color:props.accent?”#fff”:”#5a4e3a”,padding:“4px 12px”,borderRadius:20,fontSize:13}}>{props.children}</span>;
-}
-function Sec(props) {
-return <div style={{fontFamily:”‘Cormorant Garamond’,serif”,fontSize:13,fontWeight:600,letterSpacing:“0.18em”,textTransform:“uppercase”,color:C.orange,marginTop:22,marginBottom:10,paddingBottom:6,borderBottom:“1px solid #e8e0d0”}}>{props.children}</div>;
+return React.createElement(“span”, {
+style:{ background:props.accent?C.orange:“rgba(255,255,255,0.13)”, color:props.accent?”#fff”:”#c9bfae”, padding:“4px 12px”, borderRadius:20, fontSize:13 }
+}, props.children);
 }
 
-// ── Photo Slot component ─────────────────────────────────────────────────────
+function MetaTag(props) {
+return React.createElement(“span”, {
+style:{ background:props.accent?C.orange:C.tan, color:props.accent?”#fff”:”#5a4e3a”, padding:“4px 12px”, borderRadius:20, fontSize:13 }
+}, props.children);
+}
+
+// ── PhotoSlot ────────────────────────────────────────────────────────────────
 function PhotoSlot(props) {
 var inputRef = useRef(null);
-var photo = props.photo;
 
-async function handlePick(e) {
-var file = e.target.files[0]; if(!file) return;
-try {
-var dataUrl = await compressImage(file);
-props.onChange(dataUrl);
-} catch(err) { alert(“Could not load photo.”); }
-e.target.value = “”;
+async function handlePick(ev) {
+var file = ev.target.files[0]; if (!file) return;
+try { props.onChange(await compressImage(file)); } catch(err) { alert(“Could not load photo.”); }
+ev.target.value = “”;
 }
 
-return (
-<div style={{flex:1,minWidth:0}}>
-{photo
-? <div style={{position:“relative”}}>
-<img src={photo} alt=“Recipe photo” style={{width:“100%”,aspectRatio:“4/3”,objectFit:“cover”,borderRadius:10,display:“block”}} />
-<button onClick={function(){props.onChange(null);}}
-style={{position:“absolute”,top:6,right:6,background:“rgba(44,36,22,0.7)”,color:”#fff”,border:“none”,borderRadius:20,width:28,height:28,fontSize:14,cursor:“pointer”,display:“flex”,alignItems:“center”,justifyContent:“center”}}>✕</button>
-</div>
-: <div onClick={function(){inputRef.current.click();}}
-style={{width:“100%”,aspectRatio:“4/3”,background:”#f0ebe0”,border:“2px dashed “+C.border,borderRadius:10,display:“flex”,flexDirection:“column”,alignItems:“center”,justifyContent:“center”,cursor:“pointer”,gap:6}}>
-<span style={{fontSize:28}}>📷</span>
-<span style={{fontSize:13,color:C.muted}}>Add photo</span>
-</div>}
-<input ref={inputRef} type=“file” accept=“image/*” style={{display:“none”}} onChange={handlePick}/>
-</div>
+if (props.photo) {
+return React.createElement(“div”, { style:{ flex:1, position:“relative” } },
+React.createElement(“img”, { src:props.photo, alt:“Recipe photo”, style:{ width:“100%”, aspectRatio:“4/3”, objectFit:“cover”, borderRadius:10, display:“block” } }),
+React.createElement(“button”, {
+onClick: function(){ props.onChange(null); },
+style:{ position:“absolute”, top:6, right:6, background:“rgba(44,36,22,0.7)”, color:”#fff”, border:“none”, borderRadius:“50%”, width:28, height:28, fontSize:14, cursor:“pointer” }
+}, “✕”)
+);
+}
+return React.createElement(“div”, { style:{ flex:1 } },
+React.createElement(“div”, {
+onClick: function(){ inputRef.current.click(); },
+style:{ width:“100%”, aspectRatio:“4/3”, background:”#f0ebe0”, border:“2px dashed “+C.border, borderRadius:10, display:“flex”, flexDirection:“column”, alignItems:“center”, justifyContent:“center”, cursor:“pointer”, gap:6 }
+},
+React.createElement(“span”, { style:{ fontSize:28 } }, “📷”),
+React.createElement(“span”, { style:{ fontSize:13, color:C.muted } }, “Add photo”)
+),
+React.createElement(“input”, { ref:inputRef, type:“file”, accept:“image/*”, style:{ display:“none” }, onChange:handlePick })
 );
 }
 
-// ── Personal Notes editor ────────────────────────────────────────────────────
+// ── PersonalNotes ────────────────────────────────────────────────────────────
 function PersonalNotes(props) {
-var [editing, setEditing] = useState(false);
-var [draft,   setDraft]   = useState(props.value||””);
+var stateArr  = useState(false);   var editing = stateArr[0];  var setEditing = stateArr[1];
+var stateArr2 = useState(props.value || “”); var draft = stateArr2[0]; var setDraft = stateArr2[1];
+
+useEffect(function(){ setDraft(props.value || “”); }, [props.value]);
 
 function save() { props.onChange(draft); setEditing(false); }
 
-return (
-<div>
-<Sec>My Notes</Sec>
-{editing
-? <div>
-<textarea
-value={draft}
-onChange={function(e){setDraft(e.target.value);}}
-placeholder=“Add your own notes, tips, changes you made…”
-style={{width:“100%”,minHeight:100,border:“1.5px solid “+C.border,borderRadius:8,padding:“10px 12px”,fontFamily:”‘Crimson Pro’,serif”,fontSize:16,resize:“vertical”,outline:“none”,background:”#fff”,color:C.dark,lineHeight:1.6}}
-/>
-<div style={{display:“flex”,gap:8,marginTop:8}}>
-<button onClick={save} style={{background:C.dark,color:C.light,border:“none”,borderRadius:6,padding:“9px 18px”,fontFamily:”‘Crimson Pro’,serif”,fontSize:15,cursor:“pointer”}}>Save</button>
-<button onClick={function(){setDraft(props.value||””);setEditing(false);}} style={{background:“none”,border:“1px solid “+C.border,borderRadius:6,padding:“9px 18px”,fontFamily:”‘Crimson Pro’,serif”,fontSize:15,cursor:“pointer”,color:C.muted}}>Cancel</button>
-</div>
-</div>
-: <div
-onClick={function(){setEditing(true);}}
-style={{background:draft?”#faf7f2”:”#f5f0e8”,border:“1.5px dashed “+(draft?C.orange:C.border),borderRadius:8,padding:“12px 14px”,fontSize:16,lineHeight:1.7,color:draft?C.dark:C.muted,fontStyle:draft?“normal”:“italic”,cursor:“pointer”,minHeight:60}}>
-{draft || “Tap to add your personal notes…”}
-</div>}
-</div>
+return React.createElement(“div”, null,
+React.createElement(SectionTitle, null, “My Notes”),
+editing
+? React.createElement(“div”, null,
+React.createElement(“textarea”, {
+value: draft,
+onChange: function(ev){ setDraft(ev.target.value); },
+placeholder: “Your tips, changes, how it turned out…”,
+style:{ width:“100%”, minHeight:100, border:“1.5px solid “+C.border, borderRadius:8, padding:“10px 12px”, fontFamily:”‘Crimson Pro’,serif”, fontSize:16, resize:“vertical”, outline:“none”, background:”#fff”, color:C.dark, lineHeight:1.6 }
+}),
+React.createElement(“div”, { style:{ display:“flex”, gap:8, marginTop:8 } },
+React.createElement(“button”, { onClick:save, style:{ background:C.dark, color:C.light, border:“none”, borderRadius:6, padding:“9px 18px”, fontFamily:”‘Crimson Pro’,serif”, fontSize:15, cursor:“pointer” } }, “Save”),
+React.createElement(“button”, { onClick:function(){ setDraft(props.value||””); setEditing(false); }, style:{ background:“none”, border:“1px solid “+C.border, borderRadius:6, padding:“9px 18px”, fontFamily:”‘Crimson Pro’,serif”, fontSize:15, cursor:“pointer”, color:C.muted } }, “Cancel”)
+)
+)
+: React.createElement(“div”, {
+onClick: function(){ setEditing(true); },
+style:{ background:draft?”#faf7f2”:”#f5f0e8”, border:“1.5px dashed “+(draft?C.orange:C.border), borderRadius:8, padding:“12px 14px”, fontSize:16, lineHeight:1.7, color:draft?C.dark:C.muted, fontStyle:draft?“normal”:“italic”, cursor:“pointer”, minHeight:60 }
+}, draft || “Tap to add your personal notes…”)
 );
 }
 
-// ── RecipeCard ───────────────────────────────────────────────────────────────
+// ── RecipeCard ────────────────────────────────────────────────────────────────
 function RecipeCard(props) {
 var r = props.recipe;
-return (
-<div>
-{!props.slim && (
-<div style={{marginBottom:18}}>
-<div style={{fontFamily:”‘Cormorant Garamond’,serif”,fontSize:26,fontWeight:600}}>{r.name}</div>
-<div style={{display:“flex”,flexWrap:“wrap”,gap:7,marginTop:8}}>
-{r.cuisine  && <Tag accent>{r.cuisine}</Tag>}
-{r.category && <Tag>{r.category}</Tag>}
-{r.servings && <Tag>{“🍽 “+r.servings+” servings”}</Tag>}
-{r.prepTime && <Tag>{“⏱ “+r.prepTime}</Tag>}
-{r.cookTime && <Tag>{“🔥 “+r.cookTime}</Tag>}
-</div>
-</div>
-)}
-{r.ingredients&&r.ingredients.length>0&&(
-<div>
-<Sec>Ingredients</Sec>
-{r.ingredients.map(function(ing,i){ return <div key={i} style={{display:“flex”,gap:10,padding:“7px 0”,fontSize:17,borderBottom:“1px solid #f0ebe0”}}><span style={{color:C.orange,fontSize:20,lineHeight:1.1,flexShrink:0}}>·</span><span>{ing}</span></div>; })}
-</div>
-)}
-{r.steps&&r.steps.length>0&&(
-<div>
-<Sec>Preparation</Sec>
-{r.steps.map(function(step,i){ return (
-<div key={i} style={{display:“flex”,gap:14,padding:“9px 0”,fontSize:17,borderBottom:“1px solid #f0ebe0”,alignItems:“flex-start”}}>
-<span style={{fontFamily:”‘Cormorant Garamond’,serif”,fontSize:20,color:C.orange,fontWeight:600,minWidth:20,flexShrink:0}}>{i+1}</span>
-<span style={{lineHeight:1.7}}>{step.replace(/^Step\s*\d+[:.]\s*/i,””)}</span>
-</div>
-); })}
-</div>
-)}
-{r.notes&&(
-<div>
-<Sec>Recipe Notes</Sec>
-<div style={{background:”#faf7f2”,borderLeft:“3px solid “+C.orange,padding:“14px 16px”,borderRadius:“0 6px 6px 0”,fontSize:16,lineHeight:1.6,color:”#5a4e3a”,fontStyle:“italic”}}>{r.notes}</div>
-</div>
-)}
-</div>
+var parts = [];
+
+if (!props.slim) {
+parts.push(
+React.createElement(“div”, { key:“hdr”, style:{ marginBottom:18 } },
+React.createElement(“div”, { style:{ fontFamily:”‘Cormorant Garamond’,serif”, fontSize:26, fontWeight:600 } }, r.name),
+React.createElement(“div”, { style:{ display:“flex”, flexWrap:“wrap”, gap:7, marginTop:8 } },
+r.cuisine  ? React.createElement(MetaTag, { key:“cu”, accent:true }, r.cuisine) : null,
+r.category ? React.createElement(MetaTag, { key:“ca” }, r.category) : null,
+r.servings ? React.createElement(MetaTag, { key:“se” }, “🍽 “ + r.servings + “ servings”) : null,
+r.prepTime ? React.createElement(MetaTag, { key:“pr” }, “⏱ “ + r.prepTime) : null,
+r.cookTime ? React.createElement(MetaTag, { key:“co” }, “🔥 “ + r.cookTime) : null
+)
+)
 );
 }
 
-// ── Main App ─────────────────────────────────────────────────────────────────
-function App() {
-var apiStored               = localStorage.getItem(KEY_KEY)||””;
-var [apiKey,   setApiKey]   = useState(apiStored);
-var [ready,    setReady]    = useState(!!apiStored);
-var [keyInput, setKeyInput] = useState(””);
-var [recipes,  setRecipes]  = useState(loadRecipes);
-var [view,     setView]     = useState(“list”);
-var [selected, setSelected] = useState(null);
-var [search,   setSearch]   = useState(””);
-var [filter,   setFilter]   = useState(“all”); // all | done | todo
-var [url,      setUrl]      = useState(””);
-var [loading,  setLoading]  = useState(false);
-var [loadMsg,  setLoadMsg]  = useState(””);
-var [error,    setError]    = useState(””);
-var [preview,  setPreview]  = useState(null);
-var fileRef                 = useRef(null);
-
-function persist(list) { var s=saveRecipes(list); setRecipes(s); return s; }
-
-function updateSelected(patch) {
-var updated = Object.assign({},selected,patch);
-setSelected(updated);
-persist(recipes.map(function(r){ return r.id===updated.id?updated:r; }));
+if (r.ingredients && r.ingredients.length) {
+parts.push(React.createElement(SectionTitle, { key:“it” }, “Ingredients”));
+r.ingredients.forEach(function(ing, i) {
+parts.push(React.createElement(“div”, { key:“i”+i, style:{ display:“flex”, gap:10, padding:“7px 0”, fontSize:17, borderBottom:“1px solid #f0ebe0” } },
+React.createElement(“span”, { style:{ color:C.orange, fontSize:20, lineHeight:1.1, flexShrink:0 } }, “·”),
+React.createElement(“span”, null, ing)
+));
+});
 }
 
-function saveKey() { var k=keyInput.trim(); if(!k) return; localStorage.setItem(KEY_KEY,k); setApiKey(k); setReady(true); }
+if (r.steps && r.steps.length) {
+parts.push(React.createElement(SectionTitle, { key:“st” }, “Preparation”));
+r.steps.forEach(function(step, i) {
+parts.push(React.createElement(“div”, { key:“s”+i, style:{ display:“flex”, gap:14, padding:“9px 0”, fontSize:17, borderBottom:“1px solid #f0ebe0”, alignItems:“flex-start” } },
+React.createElement(“span”, { style:{ fontFamily:”‘Cormorant Garamond’,serif”, fontSize:20, color:C.orange, fontWeight:600, minWidth:20, flexShrink:0 } }, i + 1),
+React.createElement(“span”, { style:{ lineHeight:1.7 } }, step.replace(/^Step\s*\d+[:.]\s*/i, “”))
+));
+});
+}
+
+if (r.notes) {
+parts.push(React.createElement(SectionTitle, { key:“nt” }, “Recipe Notes”));
+parts.push(React.createElement(“div”, { key:“nb”, style:{ background:”#faf7f2”, borderLeft:“3px solid “+C.orange, padding:“14px 16px”, borderRadius:“0 6px 6px 0”, fontSize:16, lineHeight:1.6, color:”#5a4e3a”, fontStyle:“italic” } }, r.notes));
+}
+
+return React.createElement(“div”, null, parts);
+}
+
+// ── App ───────────────────────────────────────────────────────────────────────
+function App() {
+var s1  = useState(localStorage.getItem(KEY_KEY) || “”);  var apiKey    = s1[0]; var setApiKey    = s1[1];
+var s2  = useState(!!localStorage.getItem(KEY_KEY));       var ready     = s2[0]; var setReady     = s2[1];
+var s3  = useState(””);                                     var keyInput  = s3[0]; var setKeyInput  = s3[1];
+var s4  = useState(loadRecipes);                            var recipes   = s4[0]; var setRecipes   = s4[1];
+var s5  = useState(“list”);                                 var view      = s5[0]; var setView      = s5[1];
+var s6  = useState(null);                                   var selected  = s6[0]; var setSelected  = s6[1];
+var s7  = useState(””);                                     var search    = s7[0]; var setSearch    = s7[1];
+var s8  = useState(“all”);                                  var filter    = s8[0]; var setFilter    = s8[1];
+var s9  = useState(””);                                     var url       = s9[0]; var setUrl       = s9[1];
+var s10 = useState(false);                                  var loading   = s10[0]; var setLoading  = s10[1];
+var s11 = useState(””);                                     var loadMsg   = s11[0]; var setLoadMsg  = s11[1];
+var s12 = useState(””);                                     var error     = s12[0]; var setError    = s12[1];
+var s13 = useState(null);                                   var preview   = s13[0]; var setPreview  = s13[1];
+var fileRef = useRef(null);
+
+function persist(list) { var s = persistRecipes(list); setRecipes(s); return s; }
+
+function updateSelected(patch) {
+var updated = Object.assign({}, selected, patch);
+setSelected(updated);
+persist(recipes.map(function(r){ return r.id === updated.id ? updated : r; }));
+}
+
+function saveKey() {
+var k = keyInput.trim(); if (!k) return;
+localStorage.setItem(KEY_KEY, k); setApiKey(k); setReady(true);
+}
 
 async function handleURL() {
-if(!url.trim()) return;
+if (!url.trim()) return;
 setLoading(true); setError(””); setLoadMsg(“Fetching recipe…”);
 try {
-var r = await extractFromURL(url.trim(),apiKey);
-r.id=Date.now()+””; r.source=url.trim(); r.addedAt=new Date().toISOString();
-r.done=false; r.myNotes=””; r.photos=[null,null];
+var r = await extractFromURL(url.trim(), apiKey);
+r.id = Date.now() + “”; r.source = url.trim(); r.addedAt = new Date().toISOString();
+r.done = false; r.myNotes = “”; r.photos = [null, null];
 setPreview(r); setView(“preview”);
-} catch(e) { setError(“Couldn’t extract from that link. Make sure it’s a public recipe page (Facebook/Instagram require login — use a photo instead).”); }
+} catch(err) {
+setError(“Couldn’t extract from that link. Make sure it’s a public recipe page. Facebook / Instagram won’t work — use the photo option instead.”);
+}
 setLoading(false); setLoadMsg(””);
 }
 
-async function handleImage(e) {
-var file=e.target.files[0]; if(!file) return;
+async function handleImage(ev) {
+var file = ev.target.files[0]; if (!file) return;
 setLoading(true); setError(””); setLoadMsg(“Reading recipe from photo…”);
 try {
-var b64=await new Promise(function(res,rej){var fr=new FileReader();fr.onload=function(){res(fr.result.split(”,”)[1]);};fr.onerror=rej;fr.readAsDataURL(file);});
-var r=await extractFromImage(b64,file.type,apiKey);
-r.id=Date.now()+””; r.source=“Photo”; r.addedAt=new Date().toISOString();
-r.done=false; r.myNotes=””; r.photos=[null,null];
-setPreview(r); setView(“preview”);
-} catch(e) { setError(“Couldn’t read the recipe from that photo.”); }
-setLoading(false); setLoadMsg(””); e.target.value=””;
-}
-
-function confirmSave() { persist([…recipes,preview]); setSelected(preview); setPreview(null); setUrl(””); setView(“detail”); }
-function deleteRecipe(id) { persist(recipes.filter(function(r){return r.id!==id;})); setView(“list”); setSelected(null); }
-function goBack() { setView(“list”); setPreview(null); setError(””); }
-
-function toggleDone(id,e) {
-e.stopPropagation();
-var updated = recipes.map(function(r){ return r.id===id?Object.assign({},r,{done:!r.done}):r; });
-persist(updated);
-if(selected&&selected.id===id) setSelected(Object.assign({},selected,{done:!selected.done}));
-}
-
-function updatePhoto(idx,dataUrl) {
-var photos = (selected.photos||[null,null]).slice();
-photos[idx] = dataUrl;
-updateSelected({photos:photos});
-}
-
-// Filtering
-var filtered = recipes.filter(function(r){
-var q=search.toLowerCase();
-var matchQ = r.name.toLowerCase().includes(q)||(r.cuisine||””).toLowerCase().includes(q)||(r.category||””).toLowerCase().includes(q);
-var matchF = filter===“all” || (filter===“done”&&r.done) || (filter===“todo”&&!r.done);
-return matchQ&&matchF;
+var b64 = await new Promise(function(res, rej) {
+var fr = new FileReader(); fr.onload = function(){ res(fr.result.split(”,”)[1]); }; fr.onerror = rej; fr.readAsDataURL(file);
 });
-var grouped={};
-filtered.forEach(function(r){ var l=(r.name[0]||”#”).toUpperCase(); if(!grouped[l]) grouped[l]=[]; grouped[l].push(r); });
-var letters=Object.keys(grouped).sort();
+var r = await extractFromImage(b64, file.type, apiKey);
+r.id = Date.now() + “”; r.source = “Photo”; r.addedAt = new Date().toISOString();
+r.done = false; r.myNotes = “”; r.photos = [null, null];
+setPreview(r); setView(“preview”);
+} catch(err) { setError(“Couldn’t read the recipe from that photo.”); }
+setLoading(false); setLoadMsg(””); ev.target.value = “”;
+}
 
-var doneCount = recipes.filter(function(r){return r.done;}).length;
+function confirmSave() {
+persist([…recipes, preview]);
+setSelected(preview); setPreview(null); setUrl(””); setView(“detail”);
+}
+function deleteRecipe(id) { persist(recipes.filter(function(r){ return r.id !== id; })); setView(“list”); setSelected(null); }
+function goBack() { setView(“list”); setPreview(null); setError(””); }
+function toggleDone(id, ev) {
+if (ev) ev.stopPropagation();
+var updated = recipes.map(function(r){ return r.id === id ? Object.assign({}, r, { done: !r.done }) : r; });
+var saved = persist(updated);
+if (selected && selected.id === id) setSelected(saved.find(function(r){ return r.id === id; }));
+}
 
-var headerStyle = { background:C.dark, paddingTop:“calc(16px + env(safe-area-inset-top,0px))”, paddingBottom:“16px”, paddingLeft:“24px”, paddingRight:“24px”, display:“flex”, alignItems:“center”, justifyContent:“space-between”, position:“sticky”, top:0, zIndex:50 };
+var filtered = recipes.filter(function(r) {
+var q = search.toLowerCase();
+var matchQ = r.name.toLowerCase().indexOf(q) > -1 || (r.cuisine||””).toLowerCase().indexOf(q) > -1 || (r.category||””).toLowerCase().indexOf(q) > -1;
+var matchF = filter === “all” || (filter === “done” && r.done) || (filter === “todo” && !r.done);
+return matchQ && matchF;
+});
+var grouped = {};
+filtered.forEach(function(r) { var l = (r.name[0] || “#”).toUpperCase(); if (!grouped[l]) grouped[l] = []; grouped[l].push(r); });
+var letters = Object.keys(grouped).sort();
+var doneCount = recipes.filter(function(r){ return r.done; }).length;
 
-// ── Setup ──
-if(!ready) return (
-<div style={{minHeight:“100vh”,background:C.dark,display:“flex”,alignItems:“center”,justifyContent:“center”,padding:24,paddingTop:“calc(24px + env(safe-area-inset-top,0px))”}}>
-<div style={{background:C.cream,borderRadius:16,padding:32,maxWidth:380,width:“100%”,textAlign:“center”}}>
-<div style={{fontSize:56,marginBottom:12}}>📖</div>
-<div style={{fontFamily:”‘Cormorant Garamond’,serif”,fontSize:30,fontWeight:600,marginBottom:14}}>Jojo’s Recipes</div>
-<div style={{fontSize:16,color:C.muted,lineHeight:1.7,marginBottom:24}}>
-To read recipes from links and photos, enter your <strong>Anthropic API key</strong> below.<br/><br/>
-Get one free at <a href="https://console.anthropic.com" target="_blank" style={{color:C.orange}}>console.anthropic.com</a> → API Keys → Create key.
-</div>
-<input style={{width:“100%”,border:“1.5px solid “+C.border,borderRadius:8,padding:“12px 14px”,fontFamily:”‘Crimson Pro’,serif”,fontSize:15,marginBottom:14,outline:“none”,background:”#fff”,color:C.dark}}
-type=“password” placeholder=“sk-ant-api03-…” value={keyInput}
-onChange={function(e){setKeyInput(e.target.value);}} onKeyDown={function(e){if(e.key===“Enter”)saveKey();}} />
-<button style={{width:“100%”,background:C.orange,color:”#fff”,border:“none”,borderRadius:8,padding:14,fontFamily:”‘Cormorant Garamond’,serif”,fontSize:18,cursor:“pointer”}}
-onClick={saveKey} disabled={!keyInput.trim()}>Open my recipe book →</button>
-</div>
-</div>
-);
+var headerStyle = { background:C.dark, paddingTop:“calc(16px + env(safe-area-inset-top,0px))”, paddingBottom:16, paddingLeft:24, paddingRight:24, display:“flex”, alignItems:“center”, justifyContent:“space-between”, position:“sticky”, top:0, zIndex:50 };
 
-return (
-<div style={{minHeight:“100vh”,background:C.cream,paddingBottom:“calc(40px + env(safe-area-inset-bottom,0px))”}}>
-
-```
-  {loading&&<div style={{position:"fixed",inset:0,background:"rgba(44,36,22,0.78)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",zIndex:999,gap:18}}>
-    <div style={{width:40,height:40,border:"3px solid #8a7a62",borderTopColor:C.orange,borderRadius:"50%",animation:"spin 0.9s linear infinite"}}/>
-    <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:20,color:C.light}}>{loadMsg}</div>
-  </div>}
-
-  {/* Header */}
-  <div style={headerStyle}>
-    <div style={{display:"flex",alignItems:"baseline"}}>
-      <span style={{fontFamily:"'Cormorant Garamond',serif",fontSize:24,fontWeight:600,color:C.light}}>Jojo's <span style={{color:C.orange}}>Recipes</span></span>
-      {view==="list"&&recipes.length>0&&<span style={{background:C.orange,color:"#fff",fontSize:11,padding:"2px 8px",borderRadius:10,marginLeft:8}}>{recipes.length}</span>}
-    </div>
-    {view==="list"
-      ? <button style={{background:C.orange,color:"#fff",border:"none",borderRadius:6,padding:"8px 16px",fontFamily:"'Crimson Pro',serif",fontSize:15,cursor:"pointer"}} onClick={function(){setView("add");setError("");setUrl("");}}>+ Add</button>
-      : <button style={{background:"none",border:"none",color:C.light,fontFamily:"'Crimson Pro',serif",fontSize:16,cursor:"pointer",padding:"8px 0"}} onClick={goBack}>← Back</button>}
-  </div>
-
-  {/* ── LIST ── */}
-  {view==="list"&&<>
-    {/* Search */}
-    <div style={{padding:"12px 24px 0",background:C.tan,borderBottom:"1px solid "+C.border}}>
-      <input style={{width:"100%",background:"#fff",border:"1.5px solid "+C.border,borderRadius:8,padding:"10px 14px",fontFamily:"'Crimson Pro',serif",fontSize:16,outline:"none",marginBottom:10}}
-        placeholder="Search recipes, cuisines…" value={search} onChange={function(e){setSearch(e.target.value);}} />
-      {/* Filter tabs */}
-      <div style={{display:"flex",gap:6,paddingBottom:12}}>
-        {["all","todo","done"].map(function(f){ return (
-          <button key={f} onClick={function(){setFilter(f);}}
-            style={{flex:1,background:filter===f?C.dark:"transparent",color:filter===f?C.light:C.muted,border:"1px solid "+(filter===f?C.dark:C.border),borderRadius:6,padding:"6px 4px",fontFamily:"'Crimson Pro',serif",fontSize:14,cursor:"pointer",letterSpacing:"0.04em"}}>
-            {f==="all"?"All ("+recipes.length+")":f==="done"?"✓ Made ("+doneCount+")":"To try ("+(recipes.length-doneCount)+")"}
-          </button>
-        ); })}
-      </div>
-    </div>
-
-    {recipes.length===0&&<div style={{textAlign:"center",padding:"60px 24px",color:C.muted}}>
-      <div style={{fontSize:52,marginBottom:16}}>📖</div>
-      <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:22,color:C.dark,marginBottom:8}}>Your recipe book is empty</div>
-      <div style={{fontSize:16,lineHeight:1.6}}>Tap <strong>+ Add</strong> to get started.</div>
-    </div>}
-    {recipes.length>0&&filtered.length===0&&<div style={{textAlign:"center",padding:"60px 24px",color:C.muted}}>
-      <div style={{fontSize:36,marginBottom:12}}>🔍</div>
-      <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:22,color:C.dark}}>No matches</div>
-    </div>}
-
-    {letters.map(function(l){ return (
-      <div key={l}>
-        <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:12,fontWeight:600,letterSpacing:"0.2em",textTransform:"uppercase",color:C.orange,padding:"14px 24px 4px"}}>{l}</div>
-        {grouped[l].map(function(r){ return (
-          <div key={r.id} style={{display:"flex",alignItems:"center",padding:"11px 16px 11px 24px",borderBottom:"1px solid #e8e0d0",gap:10}}>
-            {/* Done toggle */}
-            <button onClick={function(e){toggleDone(r.id,e);}}
-              style={{width:30,height:30,borderRadius:"50%",border:"2px solid "+(r.done?C.green:C.border),background:r.done?C.green:"transparent",color:"#fff",fontSize:15,cursor:"pointer",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",transition:"all 0.15s"}}>
-              {r.done?"✓":""}
-            </button>
-            {/* Row content */}
-            <div style={{flex:1,cursor:"pointer",minWidth:0}} onClick={function(){setSelected(r);setView("detail");}}>
-              <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:19,fontWeight:500,opacity:r.done?0.5:1,textDecoration:r.done?"line-through":"none",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{r.name}</div>
-              {(r.cuisine||r.category)&&<div style={{fontSize:13,color:C.muted,marginTop:1}}>{[r.cuisine,r.category].filter(Boolean).join(" · ")}</div>}
-            </div>
-            <div style={{color:C.orange,fontSize:22,cursor:"pointer"}} onClick={function(){setSelected(r);setView("detail");}}>›</div>
-          </div>
-        ); })}
-      </div>
-    ); })}
-  </>}
-
-  {/* ── ADD ── */}
-  {view==="add"&&<div style={{padding:24,maxWidth:600,margin:"0 auto"}}>
-    <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:26,fontWeight:600,marginBottom:6}}>Add a Recipe</div>
-    <div style={{fontSize:15,color:C.muted,marginBottom:24,lineHeight:1.5}}>
-      Paste a link from any public recipe site, or upload a photo.<br/>
-      <span style={{fontSize:13,color:"#b0a390"}}>Facebook/Instagram links won't work — use the photo option instead.</span>
-    </div>
-    <div style={{background:"#fff",border:"1.5px solid "+C.border,borderRadius:10,padding:20,marginBottom:14}}>
-      <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:17,fontWeight:600,marginBottom:12}}>🔗 From a URL</div>
-      <div style={{display:"flex",gap:8}}>
-        <input style={{flex:1,border:"1.5px solid "+C.border,borderRadius:6,padding:"10px 12px",fontFamily:"'Crimson Pro',serif",fontSize:15,outline:"none",color:C.dark,minWidth:0}}
-          placeholder="https://…" value={url} onChange={function(e){setUrl(e.target.value);}} onKeyDown={function(e){if(e.key==="Enter")handleURL();}} />
-        <button style={{background:C.dark,color:C.light,border:"none",borderRadius:6,padding:"10px 18px",fontFamily:"'Crimson Pro',serif",fontSize:15,cursor:"pointer",opacity:loading||!url.trim()?0.5:1,flexShrink:0}}
-          onClick={handleURL} disabled={loading||!url.trim()}>Go</button>
-      </div>
-    </div>
-    <div style={{background:"#fff",border:"1.5px solid "+C.border,borderRadius:10,padding:20,marginBottom:14}}>
-      <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:17,fontWeight:600,marginBottom:12}}>📷 From a Photo</div>
-      <div style={{border:"2px dashed "+C.border,borderRadius:8,padding:24,textAlign:"center",cursor:"pointer"}} onClick={function(){fileRef.current.click();}}>
-        <div style={{fontSize:32,marginBottom:6}}>📸</div>
-        <div style={{fontSize:15,color:C.muted}}>Tap to choose a photo</div>
-        <div style={{fontSize:13,color:"#b0a390",marginTop:4}}>Recipe cards, screenshots, handwritten notes</div>
-      </div>
-      <input ref={fileRef} type="file" accept="image/*" style={{display:"none"}} onChange={handleImage}/>
-    </div>
-    {error&&<div style={{background:"#fdf0e8",border:"1px solid #e8b48a",borderRadius:6,padding:"12px 14px",fontSize:14,color:"#8a3a10"}}>⚠️ {error}</div>}
-  </div>}
-
-  {/* ── PREVIEW ── */}
-  {view==="preview"&&preview&&<div>
-    <div style={{background:C.orange,color:"#fff",padding:"10px 20px",fontSize:13,letterSpacing:"0.06em",textTransform:"uppercase"}}>✓ Recipe extracted — review before saving</div>
-    <div style={{padding:24,maxWidth:600,margin:"0 auto"}}>
-      <RecipeCard recipe={preview}/>
-      <div style={{display:"flex",gap:10,marginTop:20}}>
-        <button style={{flex:1,background:C.dark,color:C.light,border:"none",borderRadius:8,padding:13,fontFamily:"'Cormorant Garamond',serif",fontSize:17,cursor:"pointer"}} onClick={confirmSave}>Save to my book</button>
-        <button style={{flex:1,background:"none",color:C.muted,border:"1.5px solid "+C.border,borderRadius:8,padding:13,fontFamily:"'Cormorant Garamond',serif",fontSize:17,cursor:"pointer"}} onClick={function(){setView("add");setPreview(null);}}>Discard</button>
-      </div>
-    </div>
-  </div>}
-
-  {/* ── DETAIL ── */}
-  {view==="detail"&&selected&&<div>
-    <div style={{background:C.dark,padding:"20px 24px"}}>
-      <div style={{display:"flex",alignItems:"flex-start",gap:12}}>
-        <div style={{flex:1}}>
-          <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:26,color:C.light,fontWeight:600}}>{selected.name}</div>
-          <div style={{display:"flex",flexWrap:"wrap",gap:7,marginTop:10}}>
-            {selected.cuisine&&<Pill accent>{selected.cuisine}</Pill>}
-            {selected.category&&<Pill>{selected.category}</Pill>}
-            {selected.servings&&<Pill>{"🍽 "+selected.servings+" servings"}</Pill>}
-            {selected.prepTime&&<Pill>{"⏱ Prep "+selected.prepTime}</Pill>}
-            {selected.cookTime&&<Pill>{"🔥 Cook "+selected.cookTime}</Pill>}
-          </div>
-        </div>
-        {/* Done toggle in detail */}
-        <button onClick={function(e){toggleDone(selected.id,e);}}
-          style={{flexShrink:0,background:selected.done?C.green:"transparent",border:"2px solid "+(selected.done?C.green:"rgba(255,255,255,0.3)"),borderRadius:8,padding:"6px 12px",color:selected.done?"#fff":"rgba(255,255,255,0.6)",fontFamily:"'Crimson Pro',serif",fontSize:14,cursor:"pointer",marginTop:4}}>
-          {selected.done?"✓ Made it":"Mark as made"}
-        </button>
-      </div>
-    </div>
-
-    <div style={{padding:"22px 24px 60px"}}>
-      <RecipeCard recipe={selected} slim={true}/>
-
-      {/* ── MY PHOTOS ── */}
-      <Sec>My Photos</Sec>
-      <div style={{display:"flex",gap:12,marginBottom:4}}>
-        <PhotoSlot photo={(selected.photos||[null,null])[0]} onChange={function(d){updatePhoto(0,d);}}/>
-        <PhotoSlot photo={(selected.photos||[null,null])[1]} onChange={function(d){updatePhoto(1,d);}}/>
-      </div>
-
-      {/* ── MY NOTES ── */}
-      <PersonalNotes value={selected.myNotes||""} onChange={function(v){updateSelected({myNotes:v});}}/>
-
-      {/* Source + delete */}
-      {selected.source&&selected.source!=="Photo"&&<div style={{fontSize:13,color:C.muted,marginTop:20,wordBreak:"break-all"}}>Source: <a href={selected.source} target="_blank" style={{color:C.orange}}>{selected.source}</a></div>}
-      <button style={{marginTop:24,background:"none",border:"1px solid "+C.border,borderRadius:6,padding:"10px 18px",color:C.muted,fontFamily:"'Crimson Pro',serif",fontSize:14,cursor:"pointer"}}
-        onClick={function(){deleteRecipe(selected.id);}}>🗑 Remove recipe</button>
-    </div>
-  </div>}
-
-</div>
-```
-
+// ── Setup ──────────────────────────────────────────────────────────────────
+if (!ready) {
+return React.createElement(“div”, { style:{ minHeight:“100vh”, background:C.dark, display:“flex”, alignItems:“center”, justifyContent:“center”, padding:24, paddingTop:“calc(24px + env(safe-area-inset-top,0px))” } },
+React.createElement(“div”, { style:{ background:C.cream, borderRadius:16, padding:32, maxWidth:380, width:“100%”, textAlign:“center” } },
+React.createElement(“div”, { style:{ fontSize:56, marginBottom:12 } }, “📖”),
+React.createElement(“div”, { style:{ fontFamily:”‘Cormorant Garamond’,serif”, fontSize:30, fontWeight:600, marginBottom:14 } }, “Jojo’s Recipes”),
+React.createElement(“div”, { style:{ fontSize:16, color:C.muted, lineHeight:1.7, marginBottom:24 } },
+“Enter your “, React.createElement(“strong”, null, “Anthropic API key”), “ to get started.”,
+React.createElement(“br”), React.createElement(“br”),
+“Get one free at “,
+React.createElement(“a”, { href:“https://console.anthropic.com”, target:”_blank”, style:{ color:C.orange } }, “console.anthropic.com”),
+“ → API Keys → Create key.”
+),
+React.createElement(“input”, { type:“password”, placeholder:“sk-ant-api03-…”, value:keyInput, onChange:function(ev){ setKeyInput(ev.target.value); }, onKeyDown:function(ev){ if(ev.key===“Enter”) saveKey(); }, style:{ width:“100%”, border:“1.5px solid “+C.border, borderRadius:8, padding:“12px 14px”, fontFamily:”‘Crimson Pro’,serif”, fontSize:15, marginBottom:14, outline:“none”, background:”#fff”, color:C.dark } }),
+React.createElement(“button”, { onClick:saveKey, disabled:!keyInput.trim(), style:{ width:“100%”, background:C.orange, color:”#fff”, border:“none”, borderRadius:8, padding:14, fontFamily:”‘Cormorant Garamond’,serif”, fontSize:18, cursor:“pointer” } }, “Open my recipe book →”)
+)
 );
 }
 
-ReactDOM.createRoot(document.getElementById(“root”)).render(<App/>);
+// ── Main app ──────────────────────────────────────────────────────────────
+var children = [];
+
+// Loading overlay
+if (loading) {
+children.push(React.createElement(“div”, { key:“ov”, style:{ position:“fixed”, inset:0, background:“rgba(44,36,22,0.78)”, display:“flex”, flexDirection:“column”, alignItems:“center”, justifyContent:“center”, zIndex:999, gap:18 } },
+React.createElement(“div”, { style:{ width:40, height:40, border:“3px solid #8a7a62”, borderTopColor:C.orange, borderRadius:“50%”, animation:“spin 0.9s linear infinite” } }),
+React.createElement(“div”, { style:{ fontFamily:”‘Cormorant Garamond’,serif”, fontSize:20, color:C.light } }, loadMsg)
+));
+}
+
+// Header
+children.push(React.createElement(“div”, { key:“hd”, style:headerStyle },
+React.createElement(“div”, { style:{ display:“flex”, alignItems:“baseline” } },
+React.createElement(“span”, { style:{ fontFamily:”‘Cormorant Garamond’,serif”, fontSize:24, fontWeight:600, color:C.light } },
+“Jojo’s “, React.createElement(“span”, { style:{ color:C.orange } }, “Recipes”)
+),
+view === “list” && recipes.length > 0
+? React.createElement(“span”, { style:{ background:C.orange, color:”#fff”, fontSize:11, padding:“2px 8px”, borderRadius:10, marginLeft:8 } }, recipes.length)
+: null
+),
+view === “list”
+? React.createElement(“button”, { style:{ background:C.orange, color:”#fff”, border:“none”, borderRadius:6, padding:“8px 16px”, fontFamily:”‘Crimson Pro’,serif”, fontSize:15, cursor:“pointer” }, onClick:function(){ setView(“add”); setError(””); setUrl(””); } }, “+ Add”)
+: React.createElement(“button”, { style:{ background:“none”, border:“none”, color:C.light, fontFamily:”‘Crimson Pro’,serif”, fontSize:16, cursor:“pointer”, padding:“8px 0” }, onClick:goBack }, “← Back”)
+));
+
+// ── LIST view ──────────────────────────────────────────────────────────────
+if (view === “list”) {
+var listParts = [];
+
+```
+// Search + filters
+listParts.push(React.createElement("div", { key:"sf", style:{ padding:"12px 24px 0", background:C.tan, borderBottom:"1px solid "+C.border } },
+  React.createElement("input", { style:{ width:"100%", background:"#fff", border:"1.5px solid "+C.border, borderRadius:8, padding:"10px 14px", fontFamily:"'Crimson Pro',serif", fontSize:16, outline:"none", marginBottom:10 }, placeholder:"Search recipes, cuisines…", value:search, onChange:function(ev){ setSearch(ev.target.value); } }),
+  React.createElement("div", { style:{ display:"flex", gap:6, paddingBottom:12 } },
+    ["all","todo","done"].map(function(f) {
+      var label = f === "all" ? "All ("+recipes.length+")" : f === "done" ? "✓ Made ("+doneCount+")" : "To try ("+(recipes.length-doneCount)+")";
+      return React.createElement("button", { key:f, onClick:function(){ setFilter(f); }, style:{ flex:1, background:filter===f?C.dark:"transparent", color:filter===f?C.light:C.muted, border:"1px solid "+(filter===f?C.dark:C.border), borderRadius:6, padding:"6px 4px", fontFamily:"'Crimson Pro',serif", fontSize:13, cursor:"pointer" } }, label);
+    })
+  )
+));
+
+if (recipes.length === 0) {
+  listParts.push(React.createElement("div", { key:"em", style:{ textAlign:"center", padding:"60px 24px", color:C.muted } },
+    React.createElement("div", { style:{ fontSize:52, marginBottom:16 } }, "📖"),
+    React.createElement("div", { style:{ fontFamily:"'Cormorant Garamond',serif", fontSize:22, color:C.dark, marginBottom:8 } }, "Your recipe book is empty"),
+    React.createElement("div", { style:{ fontSize:16, lineHeight:1.6 } }, "Tap ", React.createElement("strong", null, "+ Add"), " to get started.")
+  ));
+} else if (filtered.length === 0) {
+  listParts.push(React.createElement("div", { key:"nm", style:{ textAlign:"center", padding:"60px 24px", color:C.muted } },
+    React.createElement("div", { style:{ fontSize:36, marginBottom:12 } }, "🔍"),
+    React.createElement("div", { style:{ fontFamily:"'Cormorant Garamond',serif", fontSize:22, color:C.dark } }, "No matches")
+  ));
+} else {
+  letters.forEach(function(l) {
+    listParts.push(React.createElement("div", { key:"l"+l, style:{ fontFamily:"'Cormorant Garamond',serif", fontSize:12, fontWeight:600, letterSpacing:"0.2em", textTransform:"uppercase", color:C.orange, padding:"14px 24px 4px" } }, l));
+    grouped[l].forEach(function(r) {
+      listParts.push(React.createElement("div", { key:r.id, style:{ display:"flex", alignItems:"center", padding:"11px 16px 11px 20px", borderBottom:"1px solid #e8e0d0", gap:10 } },
+        React.createElement("button", { onClick:function(ev){ toggleDone(r.id, ev); }, style:{ width:30, height:30, borderRadius:"50%", border:"2px solid "+(r.done?C.green:C.border), background:r.done?C.green:"transparent", color:"#fff", fontSize:14, cursor:"pointer", flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center" } }, r.done ? "✓" : ""),
+        React.createElement("div", { style:{ flex:1, cursor:"pointer", minWidth:0 }, onClick:function(){ setSelected(r); setView("detail"); } },
+          React.createElement("div", { style:{ fontFamily:"'Cormorant Garamond',serif", fontSize:19, fontWeight:500, opacity:r.done?0.5:1, textDecoration:r.done?"line-through":"none", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" } }, r.name),
+          (r.cuisine || r.category) ? React.createElement("div", { style:{ fontSize:13, color:C.muted, marginTop:1 } }, [r.cuisine,r.category].filter(Boolean).join(" · ")) : null
+        ),
+        React.createElement("div", { style:{ color:C.orange, fontSize:22, cursor:"pointer", flexShrink:0 }, onClick:function(){ setSelected(r); setView("detail"); } }, "›")
+      ));
+    });
+  });
+}
+children.push(React.createElement("div", { key:"lv" }, listParts));
+```
+
+}
+
+// ── ADD view ───────────────────────────────────────────────────────────────
+if (view === “add”) {
+children.push(React.createElement(“div”, { key:“av”, style:{ padding:24, maxWidth:600, margin:“0 auto” } },
+React.createElement(“div”, { style:{ fontFamily:”‘Cormorant Garamond’,serif”, fontSize:26, fontWeight:600, marginBottom:6 } }, “Add a Recipe”),
+React.createElement(“div”, { style:{ fontSize:15, color:C.muted, marginBottom:24, lineHeight:1.5 } },
+“Paste a link from any public recipe site, or upload a photo.”,
+React.createElement(“br”),
+React.createElement(“span”, { style:{ fontSize:13, color:”#b0a390” } }, “Facebook / Instagram links won’t work — screenshot and use photo instead.”)
+),
+// URL card
+React.createElement(“div”, { style:{ background:”#fff”, border:“1.5px solid “+C.border, borderRadius:10, padding:20, marginBottom:14 } },
+React.createElement(“div”, { style:{ fontFamily:”‘Cormorant Garamond’,serif”, fontSize:17, fontWeight:600, marginBottom:12 } }, “🔗 From a URL”),
+React.createElement(“div”, { style:{ display:“flex”, gap:8 } },
+React.createElement(“input”, { style:{ flex:1, border:“1.5px solid “+C.border, borderRadius:6, padding:“10px 12px”, fontFamily:”‘Crimson Pro’,serif”, fontSize:15, outline:“none”, color:C.dark, minWidth:0 }, placeholder:“https://…”, value:url, onChange:function(ev){ setUrl(ev.target.value); }, onKeyDown:function(ev){ if(ev.key===“Enter”) handleURL(); } }),
+React.createElement(“button”, { style:{ background:C.dark, color:C.light, border:“none”, borderRadius:6, padding:“10px 18px”, fontFamily:”‘Crimson Pro’,serif”, fontSize:15, cursor:“pointer”, opacity:loading||!url.trim()?0.5:1, flexShrink:0 }, onClick:handleURL, disabled:loading||!url.trim() }, “Go”)
+)
+),
+// Photo card
+React.createElement(“div”, { style:{ background:”#fff”, border:“1.5px solid “+C.border, borderRadius:10, padding:20, marginBottom:14 } },
+React.createElement(“div”, { style:{ fontFamily:”‘Cormorant Garamond’,serif”, fontSize:17, fontWeight:600, marginBottom:12 } }, “📷 From a Photo”),
+React.createElement(“div”, { style:{ border:“2px dashed “+C.border, borderRadius:8, padding:24, textAlign:“center”, cursor:“pointer” }, onClick:function(){ fileRef.current.click(); } },
+React.createElement(“div”, { style:{ fontSize:32, marginBottom:6 } }, “📸”),
+React.createElement(“div”, { style:{ fontSize:15, color:C.muted } }, “Tap to choose a photo”),
+React.createElement(“div”, { style:{ fontSize:13, color:”#b0a390”, marginTop:4 } }, “Recipe cards, screenshots, handwritten notes”)
+),
+React.createElement(“input”, { ref:fileRef, type:“file”, accept:“image/*”, style:{ display:“none” }, onChange:handleImage })
+),
+error ? React.createElement(“div”, { style:{ background:”#fdf0e8”, border:“1px solid #e8b48a”, borderRadius:6, padding:“12px 14px”, fontSize:14, color:”#8a3a10” } }, “⚠️ “ + error) : null
+));
+}
+
+// ── PREVIEW view ───────────────────────────────────────────────────────────
+if (view === “preview” && preview) {
+children.push(React.createElement(“div”, { key:“pv” },
+React.createElement(“div”, { style:{ background:C.orange, color:”#fff”, padding:“10px 20px”, fontSize:13, letterSpacing:“0.06em”, textTransform:“uppercase” } }, “✓ Recipe extracted — review before saving”),
+React.createElement(“div”, { style:{ padding:24, maxWidth:600, margin:“0 auto” } },
+React.createElement(RecipeCard, { recipe:preview }),
+React.createElement(“div”, { style:{ display:“flex”, gap:10, marginTop:20 } },
+React.createElement(“button”, { style:{ flex:1, background:C.dark, color:C.light, border:“none”, borderRadius:8, padding:13, fontFamily:”‘Cormorant Garamond’,serif”, fontSize:17, cursor:“pointer” }, onClick:confirmSave }, “Save to my book”),
+React.createElement(“button”, { style:{ flex:1, background:“none”, color:C.muted, border:“1.5px solid “+C.border, borderRadius:8, padding:13, fontFamily:”‘Cormorant Garamond’,serif”, fontSize:17, cursor:“pointer” }, onClick:function(){ setView(“add”); setPreview(null); } }, “Discard”)
+)
+)
+));
+}
+
+// ── DETAIL view ────────────────────────────────────────────────────────────
+if (view === “detail” && selected) {
+var photos = selected.photos || [null, null];
+children.push(React.createElement(“div”, { key:“dv” },
+// Dark header
+React.createElement(“div”, { style:{ background:C.dark, padding:“20px 24px” } },
+React.createElement(“div”, { style:{ display:“flex”, alignItems:“flex-start”, gap:12 } },
+React.createElement(“div”, { style:{ flex:1 } },
+React.createElement(“div”, { style:{ fontFamily:”‘Cormorant Garamond’,serif”, fontSize:26, color:C.light, fontWeight:600 } }, selected.name),
+React.createElement(“div”, { style:{ display:“flex”, flexWrap:“wrap”, gap:7, marginTop:10 } },
+selected.cuisine  ? React.createElement(Pill, { key:“cu”, accent:true }, selected.cuisine) : null,
+selected.category ? React.createElement(Pill, { key:“ca” }, selected.category) : null,
+selected.servings ? React.createElement(Pill, { key:“se” }, “🍽 “ + selected.servings + “ servings”) : null,
+selected.prepTime ? React.createElement(Pill, { key:“pr” }, “⏱ Prep “ + selected.prepTime) : null,
+selected.cookTime ? React.createElement(Pill, { key:“co” }, “🔥 Cook “ + selected.cookTime) : null
+)
+),
+React.createElement(“button”, {
+onClick: function(ev){ toggleDone(selected.id, ev); },
+style:{ flexShrink:0, background:selected.done?C.green:“transparent”, border:“2px solid “+(selected.done?C.green:“rgba(255,255,255,0.35)”), borderRadius:8, padding:“6px 12px”, color:selected.done?”#fff”:“rgba(255,255,255,0.65)”, fontFamily:”‘Crimson Pro’,serif”, fontSize:14, cursor:“pointer”, marginTop:4, whiteSpace:“nowrap” }
+}, selected.done ? “✓ Made it” : “Mark as made”)
+)
+),
+// Body
+React.createElement(“div”, { style:{ padding:“22px 24px 60px” } },
+React.createElement(RecipeCard, { recipe:selected, slim:true }),
+// Photos
+React.createElement(SectionTitle, null, “My Photos”),
+React.createElement(“div”, { style:{ display:“flex”, gap:12, marginBottom:4 } },
+React.createElement(PhotoSlot, { photo:photos[0], onChange:function(d){ updateSelected({ photos:[d, photos[1]] }); } }),
+React.createElement(PhotoSlot, { photo:photos[1], onChange:function(d){ updateSelected({ photos:[photos[0], d] }); } })
+),
+// Personal notes
+React.createElement(PersonalNotes, { value:selected.myNotes || “”, onChange:function(v){ updateSelected({ myNotes:v }); } }),
+// Source
+selected.source && selected.source !== “Photo”
+? React.createElement(“div”, { style:{ fontSize:13, color:C.muted, marginTop:20, wordBreak:“break-all” } }, “Source: “, React.createElement(“a”, { href:selected.source, target:”_blank”, style:{ color:C.orange } }, selected.source))
+: null,
+// Delete
+React.createElement(“button”, { style:{ marginTop:24, background:“none”, border:“1px solid “+C.border, borderRadius:6, padding:“10px 18px”, color:C.muted, fontFamily:”‘Crimson Pro’,serif”, fontSize:14, cursor:“pointer” }, onClick:function(){ deleteRecipe(selected.id); } }, “🗑 Remove recipe”)
+)
+));
+}
+
+return React.createElement(“div”, { style:{ minHeight:“100vh”, background:C.cream, paddingBottom:“calc(40px + env(safe-area-inset-bottom,0px))” } }, children);
+}
+
+ReactDOM.createRoot(document.getElementById(“root”)).render(React.createElement(App));
 </script>
 
 </body>
