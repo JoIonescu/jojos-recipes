@@ -667,22 +667,30 @@ function init() {
   document.getElementById('drop-zone').onclick = function(){ document.getElementById('img-input').click(); };
   document.getElementById('img-input').onchange = function() {
     var file = this.files[0]; if (!file) return;
+    var mime = file.type;
     showLoading('Reading recipe from photo…');
     document.getElementById('add-error').style.display = 'none';
-    compressImage(file).then(function(dataUrl) {
-      var b64 = dataUrl.split(',')[1];
-      return extractFromImage(b64, 'image/jpeg');
-    }).then(function(r) {
-      r.id = Date.now()+''; r.source='Photo'; r.addedAt=new Date().toISOString();
-      r.done=false; r.myNotes=''; r.photos=[null,null];
-      previewRecipe = r;
-      hideLoading(); renderPreview(); showScreen('preview');
-    }).catch(function() {
+    var fr = new FileReader();
+    fr.onload = function() {
+      var b64 = fr.result.split(',')[1];
+      extractFromImage(b64, mime).then(function(r) {
+        r.id = Date.now()+''; r.source='Photo'; r.addedAt=new Date().toISOString();
+        r.done=false; r.myNotes=''; r.photos=[null,null];
+        previewRecipe = r;
+        hideLoading(); renderPreview(); showScreen('preview');
+      }).catch(function() {
+        hideLoading();
+        var err = document.getElementById('add-error');
+        err.textContent = "⚠️ Couldn't read the recipe from that photo.";
+        err.style.display = 'block';
+      });
+    };
+    fr.onerror = function() {
       hideLoading();
-      var err = document.getElementById('add-error');
-      err.textContent = "⚠️ Couldn't read the recipe from that photo.";
-      err.style.display = 'block';
-    });
+      document.getElementById('add-error').textContent = "⚠️ Couldn't read that file.";
+      document.getElementById('add-error').style.display = 'block';
+    };
+    fr.readAsDataURL(file);
     this.value = '';
   };
 
