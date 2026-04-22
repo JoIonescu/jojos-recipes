@@ -13,15 +13,15 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600&family=Crimson+Pro:wght@300;400;500&display=swap" rel="stylesheet" />
+  <!-- React only — no Babel needed -->
   <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html, body { height: 100%; overscroll-behavior: none; }
     body { background: #f5f0e8; font-family: 'Crimson Pro', Georgia, serif; color: #2c2416; -webkit-font-smoothing: antialiased; }
     #root { height: 100%; }
-    #err { display:none; padding:24px; font-family:monospace; font-size:13px; color:#c00; background:#fff8f8; white-space:pre-wrap; }
+    #err { display:none; padding:24px; font-size:13px; color:#c00; background:#fff8f8; white-space:pre-wrap; word-break:break-all; }
     @keyframes spin { to { transform: rotate(360deg); } }
   </style>
 </head>
@@ -29,84 +29,95 @@
 <div id="err"></div>
 <div id="root"></div>
 <script>
-  window.onerror = function(msg, src, line, col, err) {
-    var el = document.getElementById("err");
-    el.style.display = "block";
-    el.textContent = "JS ERROR:\n" + msg + "\nLine: " + line + "\n" + (err ? err.stack : "");
-  };
-  var manifest = { name:"Jojo's Recipes", short_name:"Jojo's Recipes", start_url:"./", display:"standalone", background_color:"#f5f0e8", theme_color:"#2c2416", icons:[{src:"icon.svg",sizes:"any",type:"image/svg+xml",purpose:"any maskable"}] };
-  var blob = new Blob([JSON.stringify(manifest)],{type:"application/json"});
-  var ml = document.createElement("link"); ml.rel="manifest"; ml.href=URL.createObjectURL(blob); document.head.appendChild(ml);
-  if("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(function(){});
-</script>
-<script type="text/babel" data-presets="react">
+window.onerror = function(msg, src, line, col, err) {
+  var el = document.getElementById('err');
+  el.style.display = 'block';
+  el.textContent = 'ERROR: ' + msg + '\nLine: ' + line + '\n' + (err ? err.stack : '');
+};
 
-var useState  = React.useState;
-var useRef    = React.useRef;
-var useEffect = React.useEffect;
-var e         = React.createElement;
+var DB_KEY  = ‘jojos-recipes-v1’;
+var KEY_KEY = ‘jojos-api-key’;
+var C = {
+cream:’#f5f0e8’, dark:’#2c2416’, orange:’#c4854a’,
+tan:’#ede7d8’, border:’#d6cbb8’, muted:’#8a7a62’,
+light:’#e8d9b8’, green:’#4a8a4a’
+};
 
-var DB_KEY  = “jojos-recipes-v1”;
-var KEY_KEY = “jojos-api-key”;
-var C = { cream:”#f5f0e8”, dark:”#2c2416”, orange:”#c4854a”, tan:”#ede7d8”, border:”#d6cbb8”, muted:”#8a7a62”, light:”#e8d9b8”, green:”#4a8a4a” };
+// ── PWA setup ────────────────────────────────────────────────────────────────
+(function() {
+var manifest = { name:“Jojo’s Recipes”, short_name:“Jojo’s Recipes”, start_url:”./”, display:“standalone”, background_color:”#f5f0e8”, theme_color:”#2c2416”, icons:[{src:“icon.svg”,sizes:“any”,type:“image/svg+xml”,purpose:“any maskable”}] };
+var blob = new Blob([JSON.stringify(manifest)], {type:“application/json”});
+var ml = document.createElement(‘link’); ml.rel = ‘manifest’; ml.href = URL.createObjectURL(blob);
+document.head.appendChild(ml);
+if (‘serviceWorker’ in navigator) navigator.serviceWorker.register(‘sw.js’).catch(function(){});
+})();
 
-// ── Data helpers ─────────────────────────────────────────────────────────────
+// ── Helpers ──────────────────────────────────────────────────────────────────
+var h = React.createElement;
+
+function css(obj) { return obj; }
+
 function loadRecipes() {
 try {
-var list = JSON.parse(localStorage.getItem(DB_KEY) || “[]”);
-// migrate old records
+var list = JSON.parse(localStorage.getItem(DB_KEY) || ‘[]’);
 return list.map(function(r) {
-if (!r.photos) r.photos = [null, null];
-if (r.done === undefined) r.done = false;
-if (!r.myNotes) r.myNotes = “”;
+if (!r.photos)          r.photos  = [null, null];
+if (r.done === undefined) r.done  = false;
+if (!r.myNotes)         r.myNotes = ‘’;
 return r;
 });
-} catch(err) { return []; }
+} catch(e) { return []; }
 }
+
 function persistRecipes(list) {
 var sorted = list.slice().sort(function(a,b){ return a.name.localeCompare(b.name); });
-try { localStorage.setItem(DB_KEY, JSON.stringify(sorted)); } catch(err) { alert(“Storage full — try removing some recipe photos.”); }
+try { localStorage.setItem(DB_KEY, JSON.stringify(sorted)); } catch(e) { alert(‘Storage full — try removing some recipe photos.’); }
 return sorted;
 }
 
-// ── API ──────────────────────────────────────────────────────────────────────
+// ── API calls ─────────────────────────────────────────────────────────────────
 var SYSTEM = ‘You are a recipe extraction assistant. Return ONLY a valid JSON object, no markdown, no fences. Structure: {“name”:“Recipe Name”,“category”:“Main/Dessert/Breakfast/Snack/Soup/Salad”,“cuisine”:“Italian/French/Asian/etc”,“servings”:4,“prepTime”:“15 min”,“cookTime”:“30 min”,“ingredients”:[“item 1”,“item 2”],“steps”:[“First step”,“Second step”],“notes”:“Optional original tips”}’;
 
-async function callClaude(messages, apiKey) {
-var res = await fetch(“https://api.anthropic.com/v1/messages”, {
-method: “POST”,
+function callClaude(messages, apiKey) {
+return fetch(‘https://api.anthropic.com/v1/messages’, {
+method: ‘POST’,
 headers: {
-“Content-Type”: “application/json”,
-“x-api-key”: apiKey,
-“anthropic-version”: “2023-06-01”,
-“anthropic-dangerous-direct-browser-access”: “true”
+‘Content-Type’: ‘application/json’,
+‘x-api-key’: apiKey,
+‘anthropic-version’: ‘2023-06-01’,
+‘anthropic-dangerous-direct-browser-access’: ‘true’
 },
-body: JSON.stringify({ model:“claude-sonnet-4-20250514”, max_tokens:1500, system:SYSTEM, messages:messages })
-});
-var data = await res.json();
+body: JSON.stringify({ model:‘claude-sonnet-4-20250514’, max_tokens:1500, system:SYSTEM, messages:messages })
+}).then(function(res) { return res.json(); }).then(function(data) {
 if (data.error) throw new Error(data.error.message);
-var texts = (data.content || []).filter(function(b){ return b.type === “text”; });
-if (!texts.length) throw new Error(“Empty response”);
-return texts.map(function(b){ return b.text; }).join(””);
+var texts = (data.content || []).filter(function(b){ return b.type === ‘text’; });
+if (!texts.length) throw new Error(‘Empty response’);
+return texts.map(function(b){ return b.text; }).join(’’);
+});
 }
 
-async function extractFromURL(url, apiKey) {
-var jinaRes = await fetch(“https://r.jina.ai/” + url, { headers:{ “Accept”:“text/plain” } });
-if (!jinaRes.ok) throw new Error(“Cannot fetch page”);
-var pageText = (await jinaRes.text()).slice(0, 12000);
-var raw = await callClaude([{ role:“user”, content:“Extract the recipe from this webpage:\n\n” + pageText }], apiKey);
-return JSON.parse(raw.replace(/`json|`/g,””).trim());
+function extractFromURL(url, apiKey) {
+return fetch(‘https://r.jina.ai/’ + url, { headers:{‘Accept’:‘text/plain’} })
+.then(function(res) {
+if (!res.ok) throw new Error(‘Cannot fetch page’);
+return res.text();
+}).then(function(pageText) {
+return callClaude([{ role:‘user’, content:‘Extract the recipe from this webpage:\n\n’ + pageText.slice(0, 12000) }], apiKey);
+}).then(function(raw) {
+return JSON.parse(raw.replace(/`json|`/g,’’).trim());
+});
 }
 
-async function extractFromImage(b64, mime, apiKey) {
-var raw = await callClaude([{ role:“user”, content:[
-{ type:“image”, source:{ type:“base64”, media_type:mime, data:b64 } },
-{ type:“text”, text:“Extract the recipe from this image.” }
-]}], apiKey);
-return JSON.parse(raw.replace(/`json|`/g,””).trim());
+function extractFromImage(b64, mime, apiKey) {
+return callClaude([{ role:‘user’, content:[
+{ type:‘image’, source:{ type:‘base64’, media_type:mime, data:b64 } },
+{ type:‘text’,  text:‘Extract the recipe from this image.’ }
+]}], apiKey).then(function(raw) {
+return JSON.parse(raw.replace(/`json|`/g,’’).trim());
+});
 }
 
-async function compressImage(file) {
+function compressImage(file) {
 return new Promise(function(resolve, reject) {
 var reader = new FileReader();
 reader.onload = function(ev) {
@@ -114,11 +125,11 @@ var img = new Image();
 img.onload = function() {
 var MAX = 800, w = img.width, h = img.height;
 if (w > h) { if (w > MAX) { h = Math.round(h * MAX / w); w = MAX; } }
-else { if (h > MAX) { w = Math.round(w * MAX / h); h = MAX; } }
-var canvas = document.createElement(“canvas”);
+else        { if (h > MAX) { w = Math.round(w * MAX / h); h = MAX; } }
+var canvas = document.createElement(‘canvas’);
 canvas.width = w; canvas.height = h;
-canvas.getContext(“2d”).drawImage(img, 0, 0, w, h);
-resolve(canvas.toDataURL(“image/jpeg”, 0.72));
+canvas.getContext(‘2d’).drawImage(img, 0, 0, w, h);
+resolve(canvas.toDataURL(‘image/jpeg’, 0.72));
 };
 img.onerror = reject;
 img.src = ev.target.result;
@@ -128,86 +139,78 @@ reader.readAsDataURL(file);
 });
 }
 
-// ── Small UI helpers ──────────────────────────────────────────────────────────
-function Div(props) { return React.createElement(“div”, props); }
+function readFileAsBase64(file) {
+return new Promise(function(resolve, reject) {
+var fr = new FileReader();
+fr.onload = function() { resolve(fr.result.split(’,’)[1]); };
+fr.onerror = reject;
+fr.readAsDataURL(file);
+});
+}
+
+// ── UI Components (plain React.createElement) ─────────────────────────────────
 
 function SectionTitle(props) {
-return React.createElement(“div”, {
-style:{ fontFamily:”‘Cormorant Garamond’,serif”, fontSize:13, fontWeight:600, letterSpacing:“0.18em”, textTransform:“uppercase”, color:C.orange, marginTop:22, marginBottom:10, paddingBottom:6, borderBottom:“1px solid #e8e0d0” }
-}, props.children);
+return h(‘div’, { style:{ fontFamily:”‘Cormorant Garamond’,serif”, fontSize:13, fontWeight:600, letterSpacing:‘0.18em’, textTransform:‘uppercase’, color:C.orange, marginTop:22, marginBottom:10, paddingBottom:6, borderBottom:‘1px solid #e8e0d0’ }}, props.label);
 }
 
 function Pill(props) {
-return React.createElement(“span”, {
-style:{ background:props.accent?C.orange:“rgba(255,255,255,0.13)”, color:props.accent?”#fff”:”#c9bfae”, padding:“4px 12px”, borderRadius:20, fontSize:13 }
-}, props.children);
+return h(‘span’, { style:{ background:props.accent?C.orange:‘rgba(255,255,255,0.13)’, color:props.accent?’#fff’:’#c9bfae’, padding:‘4px 12px’, borderRadius:20, fontSize:13 }}, props.label);
 }
 
 function MetaTag(props) {
-return React.createElement(“span”, {
-style:{ background:props.accent?C.orange:C.tan, color:props.accent?”#fff”:”#5a4e3a”, padding:“4px 12px”, borderRadius:20, fontSize:13 }
-}, props.children);
+return h(‘span’, { style:{ background:props.accent?C.orange:C.tan, color:props.accent?’#fff’:’#5a4e3a’, padding:‘4px 12px’, borderRadius:20, fontSize:13 }}, props.label);
 }
 
 // ── PhotoSlot ────────────────────────────────────────────────────────────────
 function PhotoSlot(props) {
-var inputRef = useRef(null);
+var inputRef = React.useRef(null);
 
-async function handlePick(ev) {
+function handlePick(ev) {
 var file = ev.target.files[0]; if (!file) return;
-try { props.onChange(await compressImage(file)); } catch(err) { alert(“Could not load photo.”); }
-ev.target.value = “”;
+compressImage(file).then(function(dataUrl) {
+props.onChange(dataUrl);
+}).catch(function() { alert(‘Could not load photo.’); });
+ev.target.value = ‘’;
 }
 
 if (props.photo) {
-return React.createElement(“div”, { style:{ flex:1, position:“relative” } },
-React.createElement(“img”, { src:props.photo, alt:“Recipe photo”, style:{ width:“100%”, aspectRatio:“4/3”, objectFit:“cover”, borderRadius:10, display:“block” } }),
-React.createElement(“button”, {
-onClick: function(){ props.onChange(null); },
-style:{ position:“absolute”, top:6, right:6, background:“rgba(44,36,22,0.7)”, color:”#fff”, border:“none”, borderRadius:“50%”, width:28, height:28, fontSize:14, cursor:“pointer” }
-}, “✕”)
+return h(‘div’, { style:{ flex:1, position:‘relative’ }},
+h(‘img’, { src:props.photo, alt:‘Recipe photo’, style:{ width:‘100%’, aspectRatio:‘4/3’, objectFit:‘cover’, borderRadius:10, display:‘block’ }}),
+h(‘button’, { onClick:function(){ props.onChange(null); }, style:{ position:‘absolute’, top:6, right:6, background:‘rgba(44,36,22,0.75)’, color:’#fff’, border:‘none’, borderRadius:‘50%’, width:28, height:28, fontSize:14, cursor:‘pointer’ }}, ‘✕’)
 );
 }
-return React.createElement(“div”, { style:{ flex:1 } },
-React.createElement(“div”, {
-onClick: function(){ inputRef.current.click(); },
-style:{ width:“100%”, aspectRatio:“4/3”, background:”#f0ebe0”, border:“2px dashed “+C.border, borderRadius:10, display:“flex”, flexDirection:“column”, alignItems:“center”, justifyContent:“center”, cursor:“pointer”, gap:6 }
-},
-React.createElement(“span”, { style:{ fontSize:28 } }, “📷”),
-React.createElement(“span”, { style:{ fontSize:13, color:C.muted } }, “Add photo”)
+return h(‘div’, { style:{ flex:1 }},
+h(‘div’, { onClick:function(){ inputRef.current.click(); }, style:{ width:‘100%’, aspectRatio:‘4/3’, background:’#f0ebe0’, border:’2px dashed ’+C.border, borderRadius:10, display:‘flex’, flexDirection:‘column’, alignItems:‘center’, justifyContent:‘center’, cursor:‘pointer’, gap:6 }},
+h(‘span’, { style:{ fontSize:28 }}, ‘📷’),
+h(‘span’, { style:{ fontSize:13, color:C.muted }}, ‘Add photo’)
 ),
-React.createElement(“input”, { ref:inputRef, type:“file”, accept:“image/*”, style:{ display:“none” }, onChange:handlePick })
+h(‘input’, { ref:inputRef, type:‘file’, accept:‘image/*’, style:{ display:‘none’ }, onChange:handlePick })
 );
 }
 
-// ── PersonalNotes ────────────────────────────────────────────────────────────
+// ── PersonalNotes ─────────────────────────────────────────────────────────────
 function PersonalNotes(props) {
-var stateArr  = useState(false);   var editing = stateArr[0];  var setEditing = stateArr[1];
-var stateArr2 = useState(props.value || “”); var draft = stateArr2[0]; var setDraft = stateArr2[1];
+var es = React.useState(false);   var editing = es[0]; var setEditing = es[1];
+var ds = React.useState(props.value || ‘’); var draft = ds[0]; var setDraft = ds[1];
 
-useEffect(function(){ setDraft(props.value || “”); }, [props.value]);
+React.useEffect(function(){ setDraft(props.value || ‘’); }, [props.value]);
 
-function save() { props.onChange(draft); setEditing(false); }
-
-return React.createElement(“div”, null,
-React.createElement(SectionTitle, null, “My Notes”),
-editing
-? React.createElement(“div”, null,
-React.createElement(“textarea”, {
-value: draft,
-onChange: function(ev){ setDraft(ev.target.value); },
-placeholder: “Your tips, changes, how it turned out…”,
-style:{ width:“100%”, minHeight:100, border:“1.5px solid “+C.border, borderRadius:8, padding:“10px 12px”, fontFamily:”‘Crimson Pro’,serif”, fontSize:16, resize:“vertical”, outline:“none”, background:”#fff”, color:C.dark, lineHeight:1.6 }
-}),
-React.createElement(“div”, { style:{ display:“flex”, gap:8, marginTop:8 } },
-React.createElement(“button”, { onClick:save, style:{ background:C.dark, color:C.light, border:“none”, borderRadius:6, padding:“9px 18px”, fontFamily:”‘Crimson Pro’,serif”, fontSize:15, cursor:“pointer” } }, “Save”),
-React.createElement(“button”, { onClick:function(){ setDraft(props.value||””); setEditing(false); }, style:{ background:“none”, border:“1px solid “+C.border, borderRadius:6, padding:“9px 18px”, fontFamily:”‘Crimson Pro’,serif”, fontSize:15, cursor:“pointer”, color:C.muted } }, “Cancel”)
+if (editing) {
+return h(‘div’, null,
+h(SectionTitle, { label:‘My Notes’ }),
+h(‘textarea’, { value:draft, onChange:function(ev){ setDraft(ev.target.value); }, placeholder:‘Your tips, changes, how it turned out…’, style:{ width:‘100%’, minHeight:100, border:‘1.5px solid ‘+C.border, borderRadius:8, padding:‘10px 12px’, fontFamily:”‘Crimson Pro’,serif”, fontSize:16, resize:‘vertical’, outline:‘none’, background:’#fff’, color:C.dark, lineHeight:1.6, display:‘block’ }}),
+h(‘div’, { style:{ display:‘flex’, gap:8, marginTop:8 }},
+h(‘button’, { onClick:function(){ props.onChange(draft); setEditing(false); }, style:{ background:C.dark, color:C.light, border:‘none’, borderRadius:6, padding:‘9px 18px’, fontFamily:”‘Crimson Pro’,serif”, fontSize:15, cursor:‘pointer’ }}, ‘Save’),
+h(‘button’, { onClick:function(){ setDraft(props.value||’’); setEditing(false); }, style:{ background:‘none’, border:‘1px solid ‘+C.border, borderRadius:6, padding:‘9px 18px’, fontFamily:”‘Crimson Pro’,serif”, fontSize:15, cursor:‘pointer’, color:C.muted }}, ‘Cancel’)
 )
+);
+}
+return h(‘div’, null,
+h(SectionTitle, { label:‘My Notes’ }),
+h(‘div’, { onClick:function(){ setEditing(true); }, style:{ background:draft?’#faf7f2’:’#f5f0e8’, border:’1.5px dashed ’+(draft?C.orange:C.border), borderRadius:8, padding:‘12px 14px’, fontSize:16, lineHeight:1.7, color:draft?C.dark:C.muted, fontStyle:draft?‘normal’:‘italic’, cursor:‘pointer’, minHeight:60 }},
+draft || ‘Tap to add your personal notes…’
 )
-: React.createElement(“div”, {
-onClick: function(){ setEditing(true); },
-style:{ background:draft?”#faf7f2”:”#f5f0e8”, border:“1.5px dashed “+(draft?C.orange:C.border), borderRadius:8, padding:“12px 14px”, fontSize:16, lineHeight:1.7, color:draft?C.dark:C.muted, fontStyle:draft?“normal”:“italic”, cursor:“pointer”, minHeight:60 }
-}, draft || “Tap to add your personal notes…”)
 );
 }
 
@@ -217,64 +220,62 @@ var r = props.recipe;
 var parts = [];
 
 if (!props.slim) {
-parts.push(
-React.createElement(“div”, { key:“hdr”, style:{ marginBottom:18 } },
-React.createElement(“div”, { style:{ fontFamily:”‘Cormorant Garamond’,serif”, fontSize:26, fontWeight:600 } }, r.name),
-React.createElement(“div”, { style:{ display:“flex”, flexWrap:“wrap”, gap:7, marginTop:8 } },
-r.cuisine  ? React.createElement(MetaTag, { key:“cu”, accent:true }, r.cuisine) : null,
-r.category ? React.createElement(MetaTag, { key:“ca” }, r.category) : null,
-r.servings ? React.createElement(MetaTag, { key:“se” }, “🍽 “ + r.servings + “ servings”) : null,
-r.prepTime ? React.createElement(MetaTag, { key:“pr” }, “⏱ “ + r.prepTime) : null,
-r.cookTime ? React.createElement(MetaTag, { key:“co” }, “🔥 “ + r.cookTime) : null
-)
-)
-);
+var tags = [];
+if (r.cuisine)  tags.push(h(MetaTag, { key:‘cu’, accent:true,  label:r.cuisine }));
+if (r.category) tags.push(h(MetaTag, { key:‘ca’, accent:false, label:r.category }));
+if (r.servings) tags.push(h(MetaTag, { key:‘se’, accent:false, label:‘🍽 ‘+r.servings+’ servings’ }));
+if (r.prepTime) tags.push(h(MetaTag, { key:‘pr’, accent:false, label:’⏱ ’+r.prepTime }));
+if (r.cookTime) tags.push(h(MetaTag, { key:‘co’, accent:false, label:’🔥 ’+r.cookTime }));
+parts.push(h(‘div’, { key:‘hdr’, style:{ marginBottom:18 }},
+h(‘div’, { style:{ fontFamily:”‘Cormorant Garamond’,serif”, fontSize:26, fontWeight:600 }}, r.name),
+h(‘div’, { style:{ display:‘flex’, flexWrap:‘wrap’, gap:7, marginTop:8 }}, tags)
+));
 }
 
 if (r.ingredients && r.ingredients.length) {
-parts.push(React.createElement(SectionTitle, { key:“it” }, “Ingredients”));
+parts.push(h(SectionTitle, { key:‘it’, label:‘Ingredients’ }));
 r.ingredients.forEach(function(ing, i) {
-parts.push(React.createElement(“div”, { key:“i”+i, style:{ display:“flex”, gap:10, padding:“7px 0”, fontSize:17, borderBottom:“1px solid #f0ebe0” } },
-React.createElement(“span”, { style:{ color:C.orange, fontSize:20, lineHeight:1.1, flexShrink:0 } }, “·”),
-React.createElement(“span”, null, ing)
+parts.push(h(‘div’, { key:‘i’+i, style:{ display:‘flex’, gap:10, padding:‘7px 0’, fontSize:17, borderBottom:‘1px solid #f0ebe0’ }},
+h(‘span’, { style:{ color:C.orange, fontSize:20, lineHeight:1.1, flexShrink:0 }}, ‘·’),
+h(‘span’, null, ing)
 ));
 });
 }
 
 if (r.steps && r.steps.length) {
-parts.push(React.createElement(SectionTitle, { key:“st” }, “Preparation”));
+parts.push(h(SectionTitle, { key:‘st’, label:‘Preparation’ }));
 r.steps.forEach(function(step, i) {
-parts.push(React.createElement(“div”, { key:“s”+i, style:{ display:“flex”, gap:14, padding:“9px 0”, fontSize:17, borderBottom:“1px solid #f0ebe0”, alignItems:“flex-start” } },
-React.createElement(“span”, { style:{ fontFamily:”‘Cormorant Garamond’,serif”, fontSize:20, color:C.orange, fontWeight:600, minWidth:20, flexShrink:0 } }, i + 1),
-React.createElement(“span”, { style:{ lineHeight:1.7 } }, step.replace(/^Step\s*\d+[:.]\s*/i, “”))
+parts.push(h(‘div’, { key:‘s’+i, style:{ display:‘flex’, gap:14, padding:‘9px 0’, fontSize:17, borderBottom:‘1px solid #f0ebe0’, alignItems:‘flex-start’ }},
+h(‘span’, { style:{ fontFamily:”‘Cormorant Garamond’,serif”, fontSize:20, color:C.orange, fontWeight:600, minWidth:20, flexShrink:0 }}, i+1),
+h(‘span’, { style:{ lineHeight:1.7 }}, step.replace(/^Step\s*\d+[:.]\s*/i,’’))
 ));
 });
 }
 
 if (r.notes) {
-parts.push(React.createElement(SectionTitle, { key:“nt” }, “Recipe Notes”));
-parts.push(React.createElement(“div”, { key:“nb”, style:{ background:”#faf7f2”, borderLeft:“3px solid “+C.orange, padding:“14px 16px”, borderRadius:“0 6px 6px 0”, fontSize:16, lineHeight:1.6, color:”#5a4e3a”, fontStyle:“italic” } }, r.notes));
+parts.push(h(SectionTitle, { key:‘nt’, label:‘Recipe Notes’ }));
+parts.push(h(‘div’, { key:‘nb’, style:{ background:’#faf7f2’, borderLeft:‘3px solid ‘+C.orange, padding:‘14px 16px’, borderRadius:‘0 6px 6px 0’, fontSize:16, lineHeight:1.6, color:’#5a4e3a’, fontStyle:‘italic’ }}, r.notes));
 }
 
-return React.createElement(“div”, null, parts);
+return h(‘div’, null, parts);
 }
 
-// ── App ───────────────────────────────────────────────────────────────────────
+// ── Main App ──────────────────────────────────────────────────────────────────
 function App() {
-var s1  = useState(localStorage.getItem(KEY_KEY) || “”);  var apiKey    = s1[0]; var setApiKey    = s1[1];
-var s2  = useState(!!localStorage.getItem(KEY_KEY));       var ready     = s2[0]; var setReady     = s2[1];
-var s3  = useState(””);                                     var keyInput  = s3[0]; var setKeyInput  = s3[1];
-var s4  = useState(loadRecipes);                            var recipes   = s4[0]; var setRecipes   = s4[1];
-var s5  = useState(“list”);                                 var view      = s5[0]; var setView      = s5[1];
-var s6  = useState(null);                                   var selected  = s6[0]; var setSelected  = s6[1];
-var s7  = useState(””);                                     var search    = s7[0]; var setSearch    = s7[1];
-var s8  = useState(“all”);                                  var filter    = s8[0]; var setFilter    = s8[1];
-var s9  = useState(””);                                     var url       = s9[0]; var setUrl       = s9[1];
-var s10 = useState(false);                                  var loading   = s10[0]; var setLoading  = s10[1];
-var s11 = useState(””);                                     var loadMsg   = s11[0]; var setLoadMsg  = s11[1];
-var s12 = useState(””);                                     var error     = s12[0]; var setError    = s12[1];
-var s13 = useState(null);                                   var preview   = s13[0]; var setPreview  = s13[1];
-var fileRef = useRef(null);
+var rs1  = React.useState(localStorage.getItem(KEY_KEY) || ‘’); var apiKey   = rs1[0]; var setApiKey   = rs1[1];
+var rs2  = React.useState(!!localStorage.getItem(KEY_KEY));      var ready    = rs2[0]; var setReady    = rs2[1];
+var rs3  = React.useState(’’);                                    var keyInput = rs3[0]; var setKeyInput = rs3[1];
+var rs4  = React.useState(loadRecipes);                          var recipes  = rs4[0]; var setRecipes  = rs4[1];
+var rs5  = React.useState(‘list’);                               var view     = rs5[0]; var setView     = rs5[1];
+var rs6  = React.useState(null);                                 var selected = rs6[0]; var setSelected = rs6[1];
+var rs7  = React.useState(’’);                                   var search   = rs7[0]; var setSearch   = rs7[1];
+var rs8  = React.useState(‘all’);                                var filter   = rs8[0]; var setFilter   = rs8[1];
+var rs9  = React.useState(’’);                                   var url      = rs9[0]; var setUrl      = rs9[1];
+var rs10 = React.useState(false);                                var loading  = rs10[0]; var setLoading = rs10[1];
+var rs11 = React.useState(’’);                                   var loadMsg  = rs11[0]; var setLoadMsg = rs11[1];
+var rs12 = React.useState(’’);                                   var error    = rs12[0]; var setError   = rs12[1];
+var rs13 = React.useState(null);                                 var preview  = rs13[0]; var setPreview = rs13[1];
+var fileRef = React.useRef(null);
 
 function persist(list) { var s = persistRecipes(list); setRecipes(s); return s; }
 
@@ -289,246 +290,250 @@ var k = keyInput.trim(); if (!k) return;
 localStorage.setItem(KEY_KEY, k); setApiKey(k); setReady(true);
 }
 
-async function handleURL() {
+function handleURL() {
 if (!url.trim()) return;
-setLoading(true); setError(””); setLoadMsg(“Fetching recipe…”);
-try {
-var r = await extractFromURL(url.trim(), apiKey);
-r.id = Date.now() + “”; r.source = url.trim(); r.addedAt = new Date().toISOString();
-r.done = false; r.myNotes = “”; r.photos = [null, null];
-setPreview(r); setView(“preview”);
-} catch(err) {
-setError(“Couldn’t extract from that link. Make sure it’s a public recipe page. Facebook / Instagram won’t work — use the photo option instead.”);
-}
-setLoading(false); setLoadMsg(””);
+setLoading(true); setError(’’); setLoadMsg(‘Fetching recipe…’);
+extractFromURL(url.trim(), apiKey).then(function(r) {
+r.id = Date.now()+’’; r.source = url.trim(); r.addedAt = new Date().toISOString();
+r.done = false; r.myNotes = ‘’; r.photos = [null, null];
+setPreview(r); setView(‘preview’);
+setLoading(false); setLoadMsg(’’);
+}).catch(function() {
+setError(“Couldn’t extract from that link. Use a public recipe page. Facebook/Instagram won’t work — screenshot and use the photo option instead.”);
+setLoading(false); setLoadMsg(’’);
+});
 }
 
-async function handleImage(ev) {
+function handleImageFile(ev) {
 var file = ev.target.files[0]; if (!file) return;
-setLoading(true); setError(””); setLoadMsg(“Reading recipe from photo…”);
-try {
-var b64 = await new Promise(function(res, rej) {
-var fr = new FileReader(); fr.onload = function(){ res(fr.result.split(”,”)[1]); }; fr.onerror = rej; fr.readAsDataURL(file);
+setLoading(true); setError(’’); setLoadMsg(‘Reading recipe from photo…’);
+var mime = file.type;
+readFileAsBase64(file).then(function(b64) {
+return extractFromImage(b64, mime, apiKey);
+}).then(function(r) {
+r.id = Date.now()+’’; r.source = ‘Photo’; r.addedAt = new Date().toISOString();
+r.done = false; r.myNotes = ‘’; r.photos = [null, null];
+setPreview(r); setView(‘preview’);
+setLoading(false); setLoadMsg(’’);
+}).catch(function() {
+setError(“Couldn’t read the recipe from that photo.”);
+setLoading(false); setLoadMsg(’’);
 });
-var r = await extractFromImage(b64, file.type, apiKey);
-r.id = Date.now() + “”; r.source = “Photo”; r.addedAt = new Date().toISOString();
-r.done = false; r.myNotes = “”; r.photos = [null, null];
-setPreview(r); setView(“preview”);
-} catch(err) { setError(“Couldn’t read the recipe from that photo.”); }
-setLoading(false); setLoadMsg(””); ev.target.value = “”;
+ev.target.value = ‘’;
 }
 
 function confirmSave() {
-persist([…recipes, preview]);
-setSelected(preview); setPreview(null); setUrl(””); setView(“detail”);
+persist(recipes.concat([preview]));
+setSelected(preview); setPreview(null); setUrl(’’); setView(‘detail’);
 }
-function deleteRecipe(id) { persist(recipes.filter(function(r){ return r.id !== id; })); setView(“list”); setSelected(null); }
-function goBack() { setView(“list”); setPreview(null); setError(””); }
+
+function deleteRecipe(id) {
+persist(recipes.filter(function(r){ return r.id !== id; }));
+setView(‘list’); setSelected(null);
+}
+
+function goBack() { setView(‘list’); setPreview(null); setError(’’); }
+
 function toggleDone(id, ev) {
 if (ev) ev.stopPropagation();
-var updated = recipes.map(function(r){ return r.id === id ? Object.assign({}, r, { done: !r.done }) : r; });
-var saved = persist(updated);
-if (selected && selected.id === id) setSelected(saved.find(function(r){ return r.id === id; }));
+var saved = persist(recipes.map(function(r){ return r.id === id ? Object.assign({}, r, { done:!r.done }) : r; }));
+if (selected && selected.id === id) {
+var found = null; for (var i=0;i<saved.length;i++) { if(saved[i].id===id){ found=saved[i]; break; } }
+if (found) setSelected(found);
+}
 }
 
 var filtered = recipes.filter(function(r) {
 var q = search.toLowerCase();
-var matchQ = r.name.toLowerCase().indexOf(q) > -1 || (r.cuisine||””).toLowerCase().indexOf(q) > -1 || (r.category||””).toLowerCase().indexOf(q) > -1;
-var matchF = filter === “all” || (filter === “done” && r.done) || (filter === “todo” && !r.done);
-return matchQ && matchF;
+var mq = r.name.toLowerCase().indexOf(q) > -1 || (r.cuisine||’’).toLowerCase().indexOf(q) > -1 || (r.category||’’).toLowerCase().indexOf(q) > -1;
+var mf = filter===‘all’ || (filter===‘done’&&r.done) || (filter===‘todo’&&!r.done);
+return mq && mf;
 });
 var grouped = {};
-filtered.forEach(function(r) { var l = (r.name[0] || “#”).toUpperCase(); if (!grouped[l]) grouped[l] = []; grouped[l].push(r); });
+filtered.forEach(function(r) { var l=(r.name[0]||’#’).toUpperCase(); if(!grouped[l]) grouped[l]=[]; grouped[l].push(r); });
 var letters = Object.keys(grouped).sort();
 var doneCount = recipes.filter(function(r){ return r.done; }).length;
 
-var headerStyle = { background:C.dark, paddingTop:“calc(16px + env(safe-area-inset-top,0px))”, paddingBottom:16, paddingLeft:24, paddingRight:24, display:“flex”, alignItems:“center”, justifyContent:“space-between”, position:“sticky”, top:0, zIndex:50 };
+var headerStyle = { background:C.dark, paddingTop:‘calc(16px + env(safe-area-inset-top,0px))’, paddingBottom:16, paddingLeft:24, paddingRight:24, display:‘flex’, alignItems:‘center’, justifyContent:‘space-between’, position:‘sticky’, top:0, zIndex:50 };
 
-// ── Setup ──────────────────────────────────────────────────────────────────
+// ── SETUP SCREEN ────────────────────────────────────────────────────────────
 if (!ready) {
-return React.createElement(“div”, { style:{ minHeight:“100vh”, background:C.dark, display:“flex”, alignItems:“center”, justifyContent:“center”, padding:24, paddingTop:“calc(24px + env(safe-area-inset-top,0px))” } },
-React.createElement(“div”, { style:{ background:C.cream, borderRadius:16, padding:32, maxWidth:380, width:“100%”, textAlign:“center” } },
-React.createElement(“div”, { style:{ fontSize:56, marginBottom:12 } }, “📖”),
-React.createElement(“div”, { style:{ fontFamily:”‘Cormorant Garamond’,serif”, fontSize:30, fontWeight:600, marginBottom:14 } }, “Jojo’s Recipes”),
-React.createElement(“div”, { style:{ fontSize:16, color:C.muted, lineHeight:1.7, marginBottom:24 } },
-“Enter your “, React.createElement(“strong”, null, “Anthropic API key”), “ to get started.”,
-React.createElement(“br”), React.createElement(“br”),
-“Get one free at “,
-React.createElement(“a”, { href:“https://console.anthropic.com”, target:”_blank”, style:{ color:C.orange } }, “console.anthropic.com”),
-“ → API Keys → Create key.”
+return h(‘div’, { style:{ minHeight:‘100vh’, background:C.dark, display:‘flex’, alignItems:‘center’, justifyContent:‘center’, padding:24, paddingTop:‘calc(24px + env(safe-area-inset-top,0px))’ }},
+h(‘div’, { style:{ background:C.cream, borderRadius:16, padding:32, maxWidth:380, width:‘100%’, textAlign:‘center’ }},
+h(‘div’, { style:{ fontSize:56, marginBottom:12 }}, ‘📖’),
+h(‘div’, { style:{ fontFamily:”‘Cormorant Garamond’,serif”, fontSize:30, fontWeight:600, marginBottom:14 }}, “Jojo’s Recipes”),
+h(‘div’, { style:{ fontSize:16, color:C.muted, lineHeight:1.7, marginBottom:24 }},
+‘Enter your ‘, h(‘strong’, null, ‘Anthropic API key’), ’ to get started.’,
+h(‘br’), h(‘br’),
+‘Get one free at ‘,
+h(‘a’, { href:‘https://console.anthropic.com’, target:’_blank’, style:{ color:C.orange }}, ‘console.anthropic.com’),
+’ → API Keys → Create key.’
 ),
-React.createElement(“input”, { type:“password”, placeholder:“sk-ant-api03-…”, value:keyInput, onChange:function(ev){ setKeyInput(ev.target.value); }, onKeyDown:function(ev){ if(ev.key===“Enter”) saveKey(); }, style:{ width:“100%”, border:“1.5px solid “+C.border, borderRadius:8, padding:“12px 14px”, fontFamily:”‘Crimson Pro’,serif”, fontSize:15, marginBottom:14, outline:“none”, background:”#fff”, color:C.dark } }),
-React.createElement(“button”, { onClick:saveKey, disabled:!keyInput.trim(), style:{ width:“100%”, background:C.orange, color:”#fff”, border:“none”, borderRadius:8, padding:14, fontFamily:”‘Cormorant Garamond’,serif”, fontSize:18, cursor:“pointer” } }, “Open my recipe book →”)
+h(‘input’, { type:‘password’, placeholder:‘sk-ant-api03-…’, value:keyInput, onChange:function(ev){ setKeyInput(ev.target.value); }, onKeyDown:function(ev){ if(ev.key===‘Enter’) saveKey(); }, style:{ width:‘100%’, border:‘1.5px solid ‘+C.border, borderRadius:8, padding:‘12px 14px’, fontFamily:”‘Crimson Pro’,serif”, fontSize:15, marginBottom:14, outline:‘none’, background:’#fff’, color:C.dark }}),
+h(‘button’, { onClick:saveKey, disabled:!keyInput.trim(), style:{ width:‘100%’, background:C.orange, color:’#fff’, border:‘none’, borderRadius:8, padding:14, fontFamily:”‘Cormorant Garamond’,serif”, fontSize:18, cursor:‘pointer’ }}, ‘Open my recipe book →’)
 )
 );
 }
 
-// ── Main app ──────────────────────────────────────────────────────────────
+// ── MAIN APP ────────────────────────────────────────────────────────────────
 var children = [];
 
 // Loading overlay
 if (loading) {
-children.push(React.createElement(“div”, { key:“ov”, style:{ position:“fixed”, inset:0, background:“rgba(44,36,22,0.78)”, display:“flex”, flexDirection:“column”, alignItems:“center”, justifyContent:“center”, zIndex:999, gap:18 } },
-React.createElement(“div”, { style:{ width:40, height:40, border:“3px solid #8a7a62”, borderTopColor:C.orange, borderRadius:“50%”, animation:“spin 0.9s linear infinite” } }),
-React.createElement(“div”, { style:{ fontFamily:”‘Cormorant Garamond’,serif”, fontSize:20, color:C.light } }, loadMsg)
+children.push(h(‘div’, { key:‘ov’, style:{ position:‘fixed’, inset:0, background:‘rgba(44,36,22,0.78)’, display:‘flex’, flexDirection:‘column’, alignItems:‘center’, justifyContent:‘center’, zIndex:999, gap:18 }},
+h(‘div’, { style:{ width:40, height:40, border:‘3px solid #8a7a62’, borderTopColor:C.orange, borderRadius:‘50%’, animation:‘spin 0.9s linear infinite’ }}),
+h(‘div’, { style:{ fontFamily:”‘Cormorant Garamond’,serif”, fontSize:20, color:C.light }}, loadMsg)
 ));
 }
 
 // Header
-children.push(React.createElement(“div”, { key:“hd”, style:headerStyle },
-React.createElement(“div”, { style:{ display:“flex”, alignItems:“baseline” } },
-React.createElement(“span”, { style:{ fontFamily:”‘Cormorant Garamond’,serif”, fontSize:24, fontWeight:600, color:C.light } },
-“Jojo’s “, React.createElement(“span”, { style:{ color:C.orange } }, “Recipes”)
+children.push(h(‘div’, { key:‘hd’, style:headerStyle },
+h(‘div’, { style:{ display:‘flex’, alignItems:‘baseline’ }},
+h(‘span’, { style:{ fontFamily:”‘Cormorant Garamond’,serif”, fontSize:24, fontWeight:600, color:C.light }},
+“Jojo’s “, h(‘span’, { style:{ color:C.orange }}, ‘Recipes’)
 ),
-view === “list” && recipes.length > 0
-? React.createElement(“span”, { style:{ background:C.orange, color:”#fff”, fontSize:11, padding:“2px 8px”, borderRadius:10, marginLeft:8 } }, recipes.length)
+view===‘list’ && recipes.length > 0
+? h(‘span’, { style:{ background:C.orange, color:’#fff’, fontSize:11, padding:‘2px 8px’, borderRadius:10, marginLeft:8 }}, recipes.length)
 : null
 ),
-view === “list”
-? React.createElement(“button”, { style:{ background:C.orange, color:”#fff”, border:“none”, borderRadius:6, padding:“8px 16px”, fontFamily:”‘Crimson Pro’,serif”, fontSize:15, cursor:“pointer” }, onClick:function(){ setView(“add”); setError(””); setUrl(””); } }, “+ Add”)
-: React.createElement(“button”, { style:{ background:“none”, border:“none”, color:C.light, fontFamily:”‘Crimson Pro’,serif”, fontSize:16, cursor:“pointer”, padding:“8px 0” }, onClick:goBack }, “← Back”)
+view === ‘list’
+? h(‘button’, { style:{ background:C.orange, color:’#fff’, border:‘none’, borderRadius:6, padding:‘8px 16px’, fontFamily:”‘Crimson Pro’,serif”, fontSize:15, cursor:‘pointer’ }, onClick:function(){ setView(‘add’); setError(’’); setUrl(’’); }}, ‘+ Add’)
+: h(‘button’, { style:{ background:‘none’, border:‘none’, color:C.light, fontFamily:”‘Crimson Pro’,serif”, fontSize:16, cursor:‘pointer’, padding:‘8px 0’ }, onClick:goBack }, ‘← Back’)
 ));
 
-// ── LIST view ──────────────────────────────────────────────────────────────
-if (view === “list”) {
-var listParts = [];
+// ── LIST ───────────────────────────────────────────────────────────────────
+if (view === ‘list’) {
+var listItems = [];
+listItems.push(h(‘div’, { key:‘sf’, style:{ padding:‘12px 24px 0’, background:C.tan, borderBottom:‘1px solid ‘+C.border }},
+h(‘input’, { style:{ width:‘100%’, background:’#fff’, border:‘1.5px solid ‘+C.border, borderRadius:8, padding:‘10px 14px’, fontFamily:”‘Crimson Pro’,serif”, fontSize:16, outline:‘none’, marginBottom:10 }, placeholder:‘Search recipes, cuisines…’, value:search, onChange:function(ev){ setSearch(ev.target.value); }}),
+h(‘div’, { style:{ display:‘flex’, gap:6, paddingBottom:12 }},
+[‘all’,‘todo’,‘done’].map(function(f) {
+var label = f===‘all’?‘All (’+recipes.length+’)’:f===‘done’?‘✓ Made (’+doneCount+’)’:‘To try (’+(recipes.length-doneCount)+’)’;
+return h(‘button’, { key:f, onClick:function(){ setFilter(f); }, style:{ flex:1, background:filter===f?C.dark:‘transparent’, color:filter===f?C.light:C.muted, border:’1px solid ’+(filter===f?C.dark:C.border), borderRadius:6, padding:‘6px 4px’, fontFamily:”‘Crimson Pro’,serif”, fontSize:13, cursor:‘pointer’ }}, label);
+})
+)
+));
 
 ```
-// Search + filters
-listParts.push(React.createElement("div", { key:"sf", style:{ padding:"12px 24px 0", background:C.tan, borderBottom:"1px solid "+C.border } },
-  React.createElement("input", { style:{ width:"100%", background:"#fff", border:"1.5px solid "+C.border, borderRadius:8, padding:"10px 14px", fontFamily:"'Crimson Pro',serif", fontSize:16, outline:"none", marginBottom:10 }, placeholder:"Search recipes, cuisines…", value:search, onChange:function(ev){ setSearch(ev.target.value); } }),
-  React.createElement("div", { style:{ display:"flex", gap:6, paddingBottom:12 } },
-    ["all","todo","done"].map(function(f) {
-      var label = f === "all" ? "All ("+recipes.length+")" : f === "done" ? "✓ Made ("+doneCount+")" : "To try ("+(recipes.length-doneCount)+")";
-      return React.createElement("button", { key:f, onClick:function(){ setFilter(f); }, style:{ flex:1, background:filter===f?C.dark:"transparent", color:filter===f?C.light:C.muted, border:"1px solid "+(filter===f?C.dark:C.border), borderRadius:6, padding:"6px 4px", fontFamily:"'Crimson Pro',serif", fontSize:13, cursor:"pointer" } }, label);
-    })
-  )
-));
-
 if (recipes.length === 0) {
-  listParts.push(React.createElement("div", { key:"em", style:{ textAlign:"center", padding:"60px 24px", color:C.muted } },
-    React.createElement("div", { style:{ fontSize:52, marginBottom:16 } }, "📖"),
-    React.createElement("div", { style:{ fontFamily:"'Cormorant Garamond',serif", fontSize:22, color:C.dark, marginBottom:8 } }, "Your recipe book is empty"),
-    React.createElement("div", { style:{ fontSize:16, lineHeight:1.6 } }, "Tap ", React.createElement("strong", null, "+ Add"), " to get started.")
+  listItems.push(h('div', { key:'em', style:{ textAlign:'center', padding:'60px 24px', color:C.muted }},
+    h('div', { style:{ fontSize:52, marginBottom:16 }}, '📖'),
+    h('div', { style:{ fontFamily:"'Cormorant Garamond',serif", fontSize:22, color:C.dark, marginBottom:8 }}, 'Your recipe book is empty'),
+    h('div', { style:{ fontSize:16, lineHeight:1.6 }}, 'Tap ', h('strong', null, '+ Add'), ' to get started.')
   ));
 } else if (filtered.length === 0) {
-  listParts.push(React.createElement("div", { key:"nm", style:{ textAlign:"center", padding:"60px 24px", color:C.muted } },
-    React.createElement("div", { style:{ fontSize:36, marginBottom:12 } }, "🔍"),
-    React.createElement("div", { style:{ fontFamily:"'Cormorant Garamond',serif", fontSize:22, color:C.dark } }, "No matches")
+  listItems.push(h('div', { key:'nm', style:{ textAlign:'center', padding:'60px 24px', color:C.muted }},
+    h('div', { style:{ fontSize:36, marginBottom:12 }}, '🔍'),
+    h('div', { style:{ fontFamily:"'Cormorant Garamond',serif", fontSize:22, color:C.dark }}, 'No matches')
   ));
 } else {
   letters.forEach(function(l) {
-    listParts.push(React.createElement("div", { key:"l"+l, style:{ fontFamily:"'Cormorant Garamond',serif", fontSize:12, fontWeight:600, letterSpacing:"0.2em", textTransform:"uppercase", color:C.orange, padding:"14px 24px 4px" } }, l));
+    listItems.push(h('div', { key:'lh'+l, style:{ fontFamily:"'Cormorant Garamond',serif", fontSize:12, fontWeight:600, letterSpacing:'0.2em', textTransform:'uppercase', color:C.orange, padding:'14px 24px 4px' }}, l));
     grouped[l].forEach(function(r) {
-      listParts.push(React.createElement("div", { key:r.id, style:{ display:"flex", alignItems:"center", padding:"11px 16px 11px 20px", borderBottom:"1px solid #e8e0d0", gap:10 } },
-        React.createElement("button", { onClick:function(ev){ toggleDone(r.id, ev); }, style:{ width:30, height:30, borderRadius:"50%", border:"2px solid "+(r.done?C.green:C.border), background:r.done?C.green:"transparent", color:"#fff", fontSize:14, cursor:"pointer", flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center" } }, r.done ? "✓" : ""),
-        React.createElement("div", { style:{ flex:1, cursor:"pointer", minWidth:0 }, onClick:function(){ setSelected(r); setView("detail"); } },
-          React.createElement("div", { style:{ fontFamily:"'Cormorant Garamond',serif", fontSize:19, fontWeight:500, opacity:r.done?0.5:1, textDecoration:r.done?"line-through":"none", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" } }, r.name),
-          (r.cuisine || r.category) ? React.createElement("div", { style:{ fontSize:13, color:C.muted, marginTop:1 } }, [r.cuisine,r.category].filter(Boolean).join(" · ")) : null
+      listItems.push(h('div', { key:r.id, style:{ display:'flex', alignItems:'center', padding:'11px 16px 11px 20px', borderBottom:'1px solid #e8e0d0', gap:10 }},
+        h('button', { onClick:function(ev){ toggleDone(r.id, ev); }, style:{ width:30, height:30, borderRadius:'50%', border:'2px solid '+(r.done?C.green:C.border), background:r.done?C.green:'transparent', color:'#fff', fontSize:14, cursor:'pointer', flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center' }}, r.done?'✓':''),
+        h('div', { style:{ flex:1, cursor:'pointer', minWidth:0 }, onClick:function(){ setSelected(r); setView('detail'); }},
+          h('div', { style:{ fontFamily:"'Cormorant Garamond',serif", fontSize:19, fontWeight:500, opacity:r.done?0.5:1, textDecoration:r.done?'line-through':'none', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}, r.name),
+          (r.cuisine||r.category) ? h('div', { style:{ fontSize:13, color:C.muted, marginTop:1 }}, [r.cuisine,r.category].filter(Boolean).join(' · ')) : null
         ),
-        React.createElement("div", { style:{ color:C.orange, fontSize:22, cursor:"pointer", flexShrink:0 }, onClick:function(){ setSelected(r); setView("detail"); } }, "›")
+        h('div', { style:{ color:C.orange, fontSize:22, cursor:'pointer', flexShrink:0 }, onClick:function(){ setSelected(r); setView('detail'); }}, '›')
       ));
     });
   });
 }
-children.push(React.createElement("div", { key:"lv" }, listParts));
+children.push(h('div', { key:'lv' }, listItems));
 ```
 
 }
 
-// ── ADD view ───────────────────────────────────────────────────────────────
-if (view === “add”) {
-children.push(React.createElement(“div”, { key:“av”, style:{ padding:24, maxWidth:600, margin:“0 auto” } },
-React.createElement(“div”, { style:{ fontFamily:”‘Cormorant Garamond’,serif”, fontSize:26, fontWeight:600, marginBottom:6 } }, “Add a Recipe”),
-React.createElement(“div”, { style:{ fontSize:15, color:C.muted, marginBottom:24, lineHeight:1.5 } },
-“Paste a link from any public recipe site, or upload a photo.”,
-React.createElement(“br”),
-React.createElement(“span”, { style:{ fontSize:13, color:”#b0a390” } }, “Facebook / Instagram links won’t work — screenshot and use photo instead.”)
+// ── ADD ────────────────────────────────────────────────────────────────────
+if (view === ‘add’) {
+children.push(h(‘div’, { key:‘av’, style:{ padding:24, maxWidth:600, margin:‘0 auto’ }},
+h(‘div’, { style:{ fontFamily:”‘Cormorant Garamond’,serif”, fontSize:26, fontWeight:600, marginBottom:6 }}, ‘Add a Recipe’),
+h(‘div’, { style:{ fontSize:15, color:C.muted, marginBottom:24, lineHeight:1.5 }},
+‘Paste a link from any public recipe site, or upload a photo.’,
+h(‘br’),
+h(‘span’, { style:{ fontSize:13, color:’#b0a390’ }}, ‘Facebook/Instagram links won't work — screenshot and use photo instead.’)
 ),
-// URL card
-React.createElement(“div”, { style:{ background:”#fff”, border:“1.5px solid “+C.border, borderRadius:10, padding:20, marginBottom:14 } },
-React.createElement(“div”, { style:{ fontFamily:”‘Cormorant Garamond’,serif”, fontSize:17, fontWeight:600, marginBottom:12 } }, “🔗 From a URL”),
-React.createElement(“div”, { style:{ display:“flex”, gap:8 } },
-React.createElement(“input”, { style:{ flex:1, border:“1.5px solid “+C.border, borderRadius:6, padding:“10px 12px”, fontFamily:”‘Crimson Pro’,serif”, fontSize:15, outline:“none”, color:C.dark, minWidth:0 }, placeholder:“https://…”, value:url, onChange:function(ev){ setUrl(ev.target.value); }, onKeyDown:function(ev){ if(ev.key===“Enter”) handleURL(); } }),
-React.createElement(“button”, { style:{ background:C.dark, color:C.light, border:“none”, borderRadius:6, padding:“10px 18px”, fontFamily:”‘Crimson Pro’,serif”, fontSize:15, cursor:“pointer”, opacity:loading||!url.trim()?0.5:1, flexShrink:0 }, onClick:handleURL, disabled:loading||!url.trim() }, “Go”)
+h(‘div’, { style:{ background:’#fff’, border:‘1.5px solid ‘+C.border, borderRadius:10, padding:20, marginBottom:14 }},
+h(‘div’, { style:{ fontFamily:”‘Cormorant Garamond’,serif”, fontSize:17, fontWeight:600, marginBottom:12 }}, ‘🔗 From a URL’),
+h(‘div’, { style:{ display:‘flex’, gap:8 }},
+h(‘input’, { style:{ flex:1, border:‘1.5px solid ‘+C.border, borderRadius:6, padding:‘10px 12px’, fontFamily:”‘Crimson Pro’,serif”, fontSize:15, outline:‘none’, color:C.dark, minWidth:0 }, placeholder:‘https://…’, value:url, onChange:function(ev){ setUrl(ev.target.value); }, onKeyDown:function(ev){ if(ev.key===‘Enter’) handleURL(); }}),
+h(‘button’, { style:{ background:C.dark, color:C.light, border:‘none’, borderRadius:6, padding:‘10px 18px’, fontFamily:”‘Crimson Pro’,serif”, fontSize:15, cursor:‘pointer’, opacity:(loading||!url.trim())?0.5:1, flexShrink:0 }, onClick:handleURL, disabled:loading||!url.trim() }, ‘Go’)
 )
 ),
-// Photo card
-React.createElement(“div”, { style:{ background:”#fff”, border:“1.5px solid “+C.border, borderRadius:10, padding:20, marginBottom:14 } },
-React.createElement(“div”, { style:{ fontFamily:”‘Cormorant Garamond’,serif”, fontSize:17, fontWeight:600, marginBottom:12 } }, “📷 From a Photo”),
-React.createElement(“div”, { style:{ border:“2px dashed “+C.border, borderRadius:8, padding:24, textAlign:“center”, cursor:“pointer” }, onClick:function(){ fileRef.current.click(); } },
-React.createElement(“div”, { style:{ fontSize:32, marginBottom:6 } }, “📸”),
-React.createElement(“div”, { style:{ fontSize:15, color:C.muted } }, “Tap to choose a photo”),
-React.createElement(“div”, { style:{ fontSize:13, color:”#b0a390”, marginTop:4 } }, “Recipe cards, screenshots, handwritten notes”)
+h(‘div’, { style:{ background:’#fff’, border:‘1.5px solid ‘+C.border, borderRadius:10, padding:20, marginBottom:14 }},
+h(‘div’, { style:{ fontFamily:”‘Cormorant Garamond’,serif”, fontSize:17, fontWeight:600, marginBottom:12 }}, ‘📷 From a Photo’),
+h(‘div’, { style:{ border:‘2px dashed ‘+C.border, borderRadius:8, padding:24, textAlign:‘center’, cursor:‘pointer’ }, onClick:function(){ fileRef.current.click(); }},
+h(‘div’, { style:{ fontSize:32, marginBottom:6 }}, ‘📸’),
+h(‘div’, { style:{ fontSize:15, color:C.muted }}, ‘Tap to choose a photo’),
+h(‘div’, { style:{ fontSize:13, color:’#b0a390’, marginTop:4 }}, ‘Recipe cards, screenshots, handwritten notes’)
 ),
-React.createElement(“input”, { ref:fileRef, type:“file”, accept:“image/*”, style:{ display:“none” }, onChange:handleImage })
+h(‘input’, { ref:fileRef, type:‘file’, accept:‘image/*’, style:{ display:‘none’ }, onChange:handleImageFile })
 ),
-error ? React.createElement(“div”, { style:{ background:”#fdf0e8”, border:“1px solid #e8b48a”, borderRadius:6, padding:“12px 14px”, fontSize:14, color:”#8a3a10” } }, “⚠️ “ + error) : null
+error ? h(‘div’, { style:{ background:’#fdf0e8’, border:‘1px solid #e8b48a’, borderRadius:6, padding:‘12px 14px’, fontSize:14, color:’#8a3a10’ }}, ’⚠️ ’ + error) : null
 ));
 }
 
-// ── PREVIEW view ───────────────────────────────────────────────────────────
-if (view === “preview” && preview) {
-children.push(React.createElement(“div”, { key:“pv” },
-React.createElement(“div”, { style:{ background:C.orange, color:”#fff”, padding:“10px 20px”, fontSize:13, letterSpacing:“0.06em”, textTransform:“uppercase” } }, “✓ Recipe extracted — review before saving”),
-React.createElement(“div”, { style:{ padding:24, maxWidth:600, margin:“0 auto” } },
-React.createElement(RecipeCard, { recipe:preview }),
-React.createElement(“div”, { style:{ display:“flex”, gap:10, marginTop:20 } },
-React.createElement(“button”, { style:{ flex:1, background:C.dark, color:C.light, border:“none”, borderRadius:8, padding:13, fontFamily:”‘Cormorant Garamond’,serif”, fontSize:17, cursor:“pointer” }, onClick:confirmSave }, “Save to my book”),
-React.createElement(“button”, { style:{ flex:1, background:“none”, color:C.muted, border:“1.5px solid “+C.border, borderRadius:8, padding:13, fontFamily:”‘Cormorant Garamond’,serif”, fontSize:17, cursor:“pointer” }, onClick:function(){ setView(“add”); setPreview(null); } }, “Discard”)
+// ── PREVIEW ────────────────────────────────────────────────────────────────
+if (view === ‘preview’ && preview) {
+children.push(h(‘div’, { key:‘pv’ },
+h(‘div’, { style:{ background:C.orange, color:’#fff’, padding:‘10px 20px’, fontSize:13, letterSpacing:‘0.06em’, textTransform:‘uppercase’ }}, ‘✓ Recipe extracted — review before saving’),
+h(‘div’, { style:{ padding:24, maxWidth:600, margin:‘0 auto’ }},
+h(RecipeCard, { recipe:preview }),
+h(‘div’, { style:{ display:‘flex’, gap:10, marginTop:20 }},
+h(‘button’, { style:{ flex:1, background:C.dark, color:C.light, border:‘none’, borderRadius:8, padding:13, fontFamily:”‘Cormorant Garamond’,serif”, fontSize:17, cursor:‘pointer’ }, onClick:confirmSave }, ‘Save to my book’),
+h(‘button’, { style:{ flex:1, background:‘none’, color:C.muted, border:’1.5px solid ’+C.border, borderRadius:8, padding:13, fontFamily:”‘Cormorant Garamond’,serif”, fontSize:17, cursor:‘pointer’ }, onClick:function(){ setView(‘add’); setPreview(null); }}, ‘Discard’)
 )
 )
 ));
 }
 
-// ── DETAIL view ────────────────────────────────────────────────────────────
-if (view === “detail” && selected) {
+// ── DETAIL ─────────────────────────────────────────────────────────────────
+if (view === ‘detail’ && selected) {
 var photos = selected.photos || [null, null];
-children.push(React.createElement(“div”, { key:“dv” },
-// Dark header
-React.createElement(“div”, { style:{ background:C.dark, padding:“20px 24px” } },
-React.createElement(“div”, { style:{ display:“flex”, alignItems:“flex-start”, gap:12 } },
-React.createElement(“div”, { style:{ flex:1 } },
-React.createElement(“div”, { style:{ fontFamily:”‘Cormorant Garamond’,serif”, fontSize:26, color:C.light, fontWeight:600 } }, selected.name),
-React.createElement(“div”, { style:{ display:“flex”, flexWrap:“wrap”, gap:7, marginTop:10 } },
-selected.cuisine  ? React.createElement(Pill, { key:“cu”, accent:true }, selected.cuisine) : null,
-selected.category ? React.createElement(Pill, { key:“ca” }, selected.category) : null,
-selected.servings ? React.createElement(Pill, { key:“se” }, “🍽 “ + selected.servings + “ servings”) : null,
-selected.prepTime ? React.createElement(Pill, { key:“pr” }, “⏱ Prep “ + selected.prepTime) : null,
-selected.cookTime ? React.createElement(Pill, { key:“co” }, “🔥 Cook “ + selected.cookTime) : null
-)
-),
-React.createElement(“button”, {
-onClick: function(ev){ toggleDone(selected.id, ev); },
-style:{ flexShrink:0, background:selected.done?C.green:“transparent”, border:“2px solid “+(selected.done?C.green:“rgba(255,255,255,0.35)”), borderRadius:8, padding:“6px 12px”, color:selected.done?”#fff”:“rgba(255,255,255,0.65)”, fontFamily:”‘Crimson Pro’,serif”, fontSize:14, cursor:“pointer”, marginTop:4, whiteSpace:“nowrap” }
-}, selected.done ? “✓ Made it” : “Mark as made”)
-)
-),
-// Body
-React.createElement(“div”, { style:{ padding:“22px 24px 60px” } },
-React.createElement(RecipeCard, { recipe:selected, slim:true }),
-// Photos
-React.createElement(SectionTitle, null, “My Photos”),
-React.createElement(“div”, { style:{ display:“flex”, gap:12, marginBottom:4 } },
-React.createElement(PhotoSlot, { photo:photos[0], onChange:function(d){ updateSelected({ photos:[d, photos[1]] }); } }),
-React.createElement(PhotoSlot, { photo:photos[1], onChange:function(d){ updateSelected({ photos:[photos[0], d] }); } })
-),
-// Personal notes
-React.createElement(PersonalNotes, { value:selected.myNotes || “”, onChange:function(v){ updateSelected({ myNotes:v }); } }),
-// Source
-selected.source && selected.source !== “Photo”
-? React.createElement(“div”, { style:{ fontSize:13, color:C.muted, marginTop:20, wordBreak:“break-all” } }, “Source: “, React.createElement(“a”, { href:selected.source, target:”_blank”, style:{ color:C.orange } }, selected.source))
-: null,
-// Delete
-React.createElement(“button”, { style:{ marginTop:24, background:“none”, border:“1px solid “+C.border, borderRadius:6, padding:“10px 18px”, color:C.muted, fontFamily:”‘Crimson Pro’,serif”, fontSize:14, cursor:“pointer” }, onClick:function(){ deleteRecipe(selected.id); } }, “🗑 Remove recipe”)
-)
+var detailPills = [];
+if (selected.cuisine)  detailPills.push(h(Pill, { key:‘cu’, accent:true,  label:selected.cuisine }));
+if (selected.category) detailPills.push(h(Pill, { key:‘ca’, accent:false, label:selected.category }));
+if (selected.servings) detailPills.push(h(Pill, { key:‘se’, accent:false, label:‘🍽 ‘+selected.servings+’ servings’ }));
+if (selected.prepTime) detailPills.push(h(Pill, { key:‘pr’, accent:false, label:’⏱ Prep ’+selected.prepTime }));
+if (selected.cookTime) detailPills.push(h(Pill, { key:‘co’, accent:false, label:’🔥 Cook ’+selected.cookTime }));
+
+```
+children.push(h('div', { key:'dv' },
+  h('div', { style:{ background:C.dark, padding:'20px 24px' }},
+    h('div', { style:{ display:'flex', alignItems:'flex-start', gap:12 }},
+      h('div', { style:{ flex:1 }},
+        h('div', { style:{ fontFamily:"'Cormorant Garamond',serif", fontSize:26, color:C.light, fontWeight:600 }}, selected.name),
+        h('div', { style:{ display:'flex', flexWrap:'wrap', gap:7, marginTop:10 }}, detailPills)
+      ),
+      h('button', { onClick:function(ev){ toggleDone(selected.id, ev); }, style:{ flexShrink:0, background:selected.done?C.green:'transparent', border:'2px solid '+(selected.done?C.green:'rgba(255,255,255,0.35)'), borderRadius:8, padding:'6px 12px', color:selected.done?'#fff':'rgba(255,255,255,0.65)', fontFamily:"'Crimson Pro',serif", fontSize:14, cursor:'pointer', marginTop:4, whiteSpace:'nowrap' }},
+        selected.done ? '✓ Made it' : 'Mark as made'
+      )
+    )
+  ),
+  h('div', { style:{ padding:'22px 24px 60px' }},
+    h(RecipeCard, { recipe:selected, slim:true }),
+    h(SectionTitle, { label:'My Photos' }),
+    h('div', { style:{ display:'flex', gap:12, marginBottom:4 }},
+      h(PhotoSlot, { photo:photos[0], onChange:function(d){ updateSelected({ photos:[d, photos[1]] }); }}),
+      h(PhotoSlot, { photo:photos[1], onChange:function(d){ updateSelected({ photos:[photos[0], d] }); }})
+    ),
+    h(PersonalNotes, { value:selected.myNotes || '', onChange:function(v){ updateSelected({ myNotes:v }); }}),
+    selected.source && selected.source !== 'Photo'
+      ? h('div', { style:{ fontSize:13, color:C.muted, marginTop:20, wordBreak:'break-all' }}, 'Source: ', h('a', { href:selected.source, target:'_blank', style:{ color:C.orange }}, selected.source))
+      : null,
+    h('button', { style:{ marginTop:24, background:'none', border:'1px solid '+C.border, borderRadius:6, padding:'10px 18px', color:C.muted, fontFamily:"'Crimson Pro',serif", fontSize:14, cursor:'pointer' }, onClick:function(){ deleteRecipe(selected.id); }}, '🗑 Remove recipe')
+  )
 ));
+```
+
 }
 
-return React.createElement(“div”, { style:{ minHeight:“100vh”, background:C.cream, paddingBottom:“calc(40px + env(safe-area-inset-bottom,0px))” } }, children);
+return h(‘div’, { style:{ minHeight:‘100vh’, background:C.cream, paddingBottom:‘calc(40px + env(safe-area-inset-bottom,0px))’ }}, children);
 }
 
-ReactDOM.createRoot(document.getElementById(“root”)).render(React.createElement(App));
+ReactDOM.createRoot(document.getElementById(‘root’)).render(React.createElement(App));
 </script>
 
 </body>
