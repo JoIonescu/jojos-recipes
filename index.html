@@ -119,6 +119,17 @@
 .source-link{font-size:13px;color:#8a7a62;margin-top:20px;word-break:break-all}
 .source-link a{color:#c4854a}
 .delete-btn{margin-top:24px;background:none;border:1px solid #d6cbb8;border-radius:6px;padding:10px 18px;color:#8a7a62;font-size:14px;cursor:pointer}
+/* Edit screen */
+.edit-field-label{font-size:12px;font-weight:bold;letter-spacing:0.1em;text-transform:uppercase;color:#8a7a62;margin-bottom:4px;margin-top:14px;display:block}
+.edit-input{width:100%;border:1.5px solid #d6cbb8;border-radius:8px;padding:10px 12px;font-size:16px;outline:none;background:#fff;color:#2c2416;font-family:Georgia,serif;margin-bottom:2px}
+.edit-input:focus{border-color:#c4854a}
+.edit-row{display:flex;gap:8px;margin-bottom:8px;align-items:flex-start}
+.edit-row .edit-input{margin-bottom:0}
+.edit-remove-btn{background:none;border:1px solid #d6cbb8;border-radius:6px;padding:10px 10px;color:#8a7a62;font-size:16px;cursor:pointer;flex-shrink:0;line-height:1}
+.edit-add-btn{background:none;border:1px solid #c4854a;border-radius:6px;padding:8px 14px;color:#c4854a;font-size:14px;cursor:pointer;margin-top:4px}
+.edit-save-btn{flex:1;background:#2c2416;color:#e8d9b8;border:none;border-radius:8px;padding:13px;font-size:17px;cursor:pointer;font-family:Georgia,serif}
+.edit-cancel-btn{flex:1;background:none;color:#8a7a62;border:1.5px solid #d6cbb8;border-radius:8px;padding:13px;font-size:17px;cursor:pointer;font-family:Georgia,serif}
+.edit-btn{background:none;border:1px solid rgba(255,255,255,0.3);border-radius:6px;padding:5px 12px;color:rgba(255,255,255,0.7);font-size:13px;cursor:pointer;margin-top:8px}
 
 /* Loading */
 #loading{display:none;position:fixed;inset:0;background:rgba(44,36,22,0.78);flex-direction:column;align-items:center;justify-content:center;z-index:999;gap:18px}
@@ -242,7 +253,7 @@
           <div id="detail-title"></div>
           <div id="detail-pills"></div>
         </div>
-        <button id="mark-btn">Mark as made</button>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px"><button id="mark-btn">Mark as made</button><button id="edit-recipe-btn" class="edit-btn">✏️ Edit</button></div>
       </div>
     </div>
     <div class="panel">
@@ -267,6 +278,37 @@
       </div>
       <div id="detail-source"></div>
       <button id="delete-btn" class="delete-btn">🗑 Remove recipe</button>
+    </div>
+  </div>
+
+  <!-- EDIT SCREEN -->
+
+  <div id="screen-edit" class="screen">
+    <div class="panel">
+      <h2 style="margin-bottom:20px">Edit Recipe</h2>
+      <label class="edit-field-label">Recipe Name</label>
+      <input id="edit-name" class="edit-input" type="text"/>
+      <label class="edit-field-label">Cuisine</label>
+      <input id="edit-cuisine" class="edit-input" type="text" placeholder="Italian, French, Asian…"/>
+      <label class="edit-field-label">Category</label>
+      <input id="edit-category" class="edit-input" type="text" placeholder="Main, Dessert, Soup…"/>
+      <div style="display:flex;gap:10px">
+        <div style="flex:1"><label class="edit-field-label">Servings</label><input id="edit-servings" class="edit-input" type="text"/></div>
+        <div style="flex:1"><label class="edit-field-label">Prep time</label><input id="edit-preptime" class="edit-input" type="text" placeholder="15 min"/></div>
+        <div style="flex:1"><label class="edit-field-label">Cook time</label><input id="edit-cooktime" class="edit-input" type="text" placeholder="30 min"/></div>
+      </div>
+      <label class="edit-field-label">Ingredients</label>
+      <div id="edit-ingredients-list"></div>
+      <button class="edit-add-btn" id="edit-add-ingredient">+ Add ingredient</button>
+      <label class="edit-field-label">Steps</label>
+      <div id="edit-steps-list"></div>
+      <button class="edit-add-btn" id="edit-add-step">+ Add step</button>
+      <label class="edit-field-label">Recipe Notes</label>
+      <textarea id="edit-notes" class="edit-input" rows="3" style="resize:vertical"></textarea>
+      <div class="confirm-row" style="margin-top:24px">
+        <button id="edit-save-btn" class="edit-save-btn">Save changes</button>
+        <button id="edit-cancel-btn" class="edit-cancel-btn">Cancel</button>
+      </div>
     </div>
   </div>
 
@@ -567,6 +609,10 @@ function renderDetail() {
   renderNotesView(r);
 
   // Delete
+  document.getElementById('edit-recipe-btn').onclick = function() {
+    showScreen('edit'); renderEdit();
+  };
+
   document.getElementById('delete-btn').onclick = function() {
     if (!confirm('Remove "'+r.name+'" from your book?')) return;
     recipes = recipes.filter(function(x){ return x.id !== r.id; });
@@ -621,6 +667,75 @@ function renderNotesView(r) {
   document.getElementById('notes-cancel-btn').onclick = function() {
     edit.style.display='none'; view.style.display='block';
   };
+}
+
+
+// ── Edit recipe ───────────────────────────────────────────────────────────────
+function renderEdit() {
+  var r = getSelected(); if (!r) return;
+  document.getElementById('edit-name').value     = r.name     || '';
+  document.getElementById('edit-cuisine').value  = r.cuisine  || '';
+  document.getElementById('edit-category').value = r.category || '';
+  document.getElementById('edit-servings').value = r.servings || '';
+  document.getElementById('edit-preptime').value = r.prepTime || '';
+  document.getElementById('edit-cooktime').value = r.cookTime || '';
+  document.getElementById('edit-notes').value    = r.notes    || '';
+
+  // Ingredients
+  var ingList = document.getElementById('edit-ingredients-list');
+  ingList.innerHTML = '';
+  (r.ingredients || []).forEach(function(ing, i) { addIngredientRow(ing); });
+
+  // Steps
+  var stepList = document.getElementById('edit-steps-list');
+  stepList.innerHTML = '';
+  (r.steps || []).forEach(function(step) { addStepRow(step); });
+
+  document.getElementById('edit-add-ingredient').onclick = function() { addIngredientRow(''); };
+  document.getElementById('edit-add-step').onclick       = function() { addStepRow(''); };
+
+  document.getElementById('edit-save-btn').onclick = function() {
+    var ings  = Array.from(document.querySelectorAll('.edit-ing-input')).map(function(i){ return i.value.trim(); }).filter(Boolean);
+    var steps = Array.from(document.querySelectorAll('.edit-step-input')).map(function(i){ return i.value.trim(); }).filter(Boolean);
+    updateSelected({
+      name:        document.getElementById('edit-name').value.trim()     || r.name,
+      cuisine:     document.getElementById('edit-cuisine').value.trim(),
+      category:    document.getElementById('edit-category').value.trim(),
+      servings:    document.getElementById('edit-servings').value.trim(),
+      prepTime:    document.getElementById('edit-preptime').value.trim(),
+      cookTime:    document.getElementById('edit-cooktime').value.trim(),
+      notes:       document.getElementById('edit-notes').value.trim(),
+      ingredients: ings,
+      steps:       steps
+    });
+    saveAll();
+    showScreen('detail'); renderDetail();
+  };
+  document.getElementById('edit-cancel-btn').onclick = function() {
+    showScreen('detail'); renderDetail();
+  };
+}
+
+function addIngredientRow(value) {
+  var list = document.getElementById('edit-ingredients-list');
+  var row  = document.createElement('div'); row.className = 'edit-row';
+  var inp  = document.createElement('input'); inp.type='text'; inp.className='edit-input edit-ing-input'; inp.value=value; inp.placeholder='e.g. 200g flour';
+  var btn  = document.createElement('button'); btn.className='edit-remove-btn'; btn.textContent='✕'; btn.type='button';
+  btn.onclick = function() { list.removeChild(row); };
+  row.appendChild(inp); row.appendChild(btn); list.appendChild(row);
+  inp.focus();
+}
+
+function addStepRow(value) {
+  var list = document.getElementById('edit-steps-list');
+  var idx  = list.children.length + 1;
+  var row  = document.createElement('div'); row.className = 'edit-row'; row.style.alignItems='flex-start';
+  var num  = document.createElement('span'); num.textContent=idx; num.style.cssText='padding:10px 4px;color:#c4854a;font-weight:bold;font-size:16px;flex-shrink:0;min-width:20px';
+  var inp  = document.createElement('textarea'); inp.className='edit-input edit-step-input'; inp.value=value; inp.placeholder='Describe this step…'; inp.rows=2; inp.style.resize='vertical';
+  var btn  = document.createElement('button'); btn.className='edit-remove-btn'; btn.textContent='✕'; btn.type='button';
+  btn.onclick = function() { list.removeChild(row); };
+  row.appendChild(num); row.appendChild(inp); row.appendChild(btn); list.appendChild(row);
+  inp.focus();
 }
 
 // ── Setup + event wiring ──────────────────────────────────────────────────────
@@ -708,11 +823,13 @@ function init() {
   [0,1].forEach(function(idx) {
     document.getElementById('photo-input-'+idx).onchange = function() {
       var file = this.files[0]; if (!file) return;
-      compressImage(file).then(function(dataUrl) {
+      var fr = new FileReader();
+      fr.onload = function() {
         var r = getSelected(); if (!r) return;
-        var p = (r.photos||[null,null]).slice(); p[idx]=dataUrl;
+        var p = (r.photos||[null,null]).slice(); p[idx]=fr.result;
         updateSelected({photos:p}); renderPhotoSlot(idx, getSelected());
-      }).catch(function(){ alert('Could not load photo.'); });
+      };
+      fr.readAsDataURL(file);
       this.value='';
     };
   });
