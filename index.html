@@ -5,327 +5,441 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Jojo's Recipes</title>
-
-  <!-- PWA / iOS -->
-
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Jojo's Recipes" />
   <meta name="theme-color" content="#2c2416" />
   <link rel="apple-touch-icon" href="icon.svg" />
-
-  <!-- Fonts -->
-
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=Crimson+Pro:wght@300;400;500&display=swap" rel="stylesheet" />
-
-  <!-- React + Babel -->
-
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600&family=Crimson+Pro:wght@300;400;500&display=swap" rel="stylesheet" />
   <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html, body { height: 100%; overscroll-behavior: none; }
-    body {
-      background: #f5f0e8;
-      font-family: 'Crimson Pro', Georgia, serif;
-      color: #2c2416;
-      -webkit-font-smoothing: antialiased;
-    }
+    body { background: #f5f0e8; font-family: 'Crimson Pro', Georgia, serif; color: #2c2416; -webkit-font-smoothing: antialiased; }
     #root { height: 100%; }
     @keyframes spin { to { transform: rotate(360deg); } }
   </style>
-
 </head>
 <body>
 <div id="root"></div>
-
 <script>
-  var manifest = {
-    name: "Jojo's Recipes", short_name: "Jojo's Recipes",
-    start_url: "./", display: "standalone",
-    background_color: "#f5f0e8", theme_color: "#2c2416",
-    icons: [{ src: "icon.svg", sizes: "any", type: "image/svg+xml", purpose: "any maskable" }]
-  };
-  var blob = new Blob([JSON.stringify(manifest)], { type: "application/json" });
-  var ml = document.createElement("link");
-  ml.rel = "manifest"; ml.href = URL.createObjectURL(blob);
-  document.head.appendChild(ml);
-  if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(function(){});
+  var manifest = { name:"Jojo's Recipes", short_name:"Jojo's Recipes", start_url:"./", display:"standalone", background_color:"#f5f0e8", theme_color:"#2c2416", icons:[{src:"icon.svg",sizes:"any",type:"image/svg+xml",purpose:"any maskable"}] };
+  var blob = new Blob([JSON.stringify(manifest)],{type:"application/json"});
+  var ml = document.createElement("link"); ml.rel="manifest"; ml.href=URL.createObjectURL(blob); document.head.appendChild(ml);
+  if("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(function(){});
 </script>
-
 <script type="text/babel">
 var useState = React.useState;
 var useRef   = React.useRef;
+var useEffect = React.useEffect;
 
-var DB_KEY  = "jojos-recipes-v1";
-var KEY_KEY = "jojos-api-key";
+var DB_KEY  = “jojos-recipes-v1”;
+var KEY_KEY = “jojos-api-key”;
 
-function loadRecipes() {
-  try { return JSON.parse(localStorage.getItem(DB_KEY) || "[]"); } catch(e) { return []; }
-}
+function loadRecipes() { try { return JSON.parse(localStorage.getItem(DB_KEY)||”[]”); } catch(e){ return []; } }
 function saveRecipes(list) {
-  var sorted = list.slice().sort(function(a,b){ return a.name.localeCompare(b.name); });
-  localStorage.setItem(DB_KEY, JSON.stringify(sorted));
-  return sorted;
+var sorted = list.slice().sort(function(a,b){ return a.name.localeCompare(b.name); });
+localStorage.setItem(DB_KEY, JSON.stringify(sorted));
+return sorted;
 }
 
-var SYSTEM = "You are a recipe extraction assistant. Return ONLY a valid JSON object, no markdown fences, no extra text. Structure: {\"name\":\"Recipe Name\",\"category\":\"Main/Dessert/etc\",\"cuisine\":\"Italian/etc\",\"servings\":4,\"prepTime\":\"15 min\",\"cookTime\":\"30 min\",\"ingredients\":[\"item1\",\"item2\"],\"steps\":[\"Step one\",\"Step two\"],\"notes\":\"Optional tips\"}";
+var SYSTEM = ‘You are a recipe extraction assistant. Return ONLY a valid JSON object, no markdown fences, no extra text. Use this exact structure: {“name”:“Recipe Name”,“category”:“Main/Dessert/Breakfast/Snack/Soup/Salad”,“cuisine”:“Italian/French/Asian/etc”,“servings”:4,“prepTime”:“15 min”,“cookTime”:“30 min”,“ingredients”:[“item 1”,“item 2”],“steps”:[“First step”,“Second step”],“notes”:“Optional tips from the original recipe”}’;
 
-async function callAPI(messages, apiKey, useSearch) {
-  var msgs = messages.slice();
-  for (var i = 0; i < 6; i++) {
-    var body = { model: "claude-sonnet-4-20250514", max_tokens: 1500, system: SYSTEM, messages: msgs };
-    if (useSearch) body.tools = [{ type: "web_search_20250305", name: "web_search" }];
-    var res  = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-        "anthropic-dangerous-direct-browser-access": "true"
-      },
-      body: JSON.stringify(body)
-    });
-    var data = await res.json();
-    if (data.error) throw new Error(data.error.message);
-    var texts = (data.content||[]).filter(function(b){ return b.type==="text"; });
-    if (data.stop_reason === "end_turn" && texts.length) return texts.map(function(b){return b.text;}).join("");
-    if (data.stop_reason === "tool_use") {
-      msgs.push({ role: "assistant", content: data.content });
-      var results = (data.content||[]).filter(function(b){return b.type==="tool_use";}).map(function(b){ return { type:"tool_result", tool_use_id:b.id, content:"done" }; });
-      msgs.push({ role: "user", content: results });
-    } else {
-      if (texts.length) return texts.map(function(b){return b.text;}).join("");
-      throw new Error("Unexpected response");
-    }
-  }
-  throw new Error("Too many rounds");
+async function callClaude(messages, apiKey) {
+var res = await fetch(“https://api.anthropic.com/v1/messages”, {
+method:“POST”,
+headers:{“Content-Type”:“application/json”,“x-api-key”:apiKey,“anthropic-version”:“2023-06-01”,“anthropic-dangerous-direct-browser-access”:“true”},
+body:JSON.stringify({model:“claude-sonnet-4-20250514”,max_tokens:1500,system:SYSTEM,messages:messages})
+});
+var data = await res.json();
+if(data.error) throw new Error(data.error.message);
+var texts = (data.content||[]).filter(function(b){return b.type===“text”;});
+if(!texts.length) throw new Error(“No text response”);
+return texts.map(function(b){return b.text;}).join(””);
 }
 
-async function extractURL(url, key) {
-  var raw = await callAPI([{ role:"user", content:"Fetch and extract the recipe from: "+url }], key, true);
-  return JSON.parse(raw.replace(/```json|```/g,"").trim());
-}
-async function extractImage(b64, mime, key) {
-  var raw = await callAPI([{ role:"user", content:[
-    { type:"image", source:{ type:"base64", media_type:mime, data:b64 } },
-    { type:"text",  text:"Extract the recipe from this image." }
-  ]}], key, false);
-  return JSON.parse(raw.replace(/```json|```/g,"").trim());
+async function fetchURL(url) {
+var res = await fetch(“https://r.jina.ai/”+url,{headers:{“Accept”:“text/plain”}});
+if(!res.ok) throw new Error(“Could not fetch page”);
+return (await res.text()).slice(0,12000);
 }
 
-var C = { cream:"#f5f0e8", dark:"#2c2416", orange:"#c4854a", tan:"#ede7d8", border:"#d6cbb8", muted:"#8a7a62", light:"#e8d9b8" };
+async function extractFromURL(url,apiKey) {
+var pageText = await fetchURL(url);
+var raw = await callClaude([{role:“user”,content:“Extract the recipe from this webpage content:\n\n”+pageText}],apiKey);
+return JSON.parse(raw.replace(/`json|`/g,””).trim());
+}
+
+async function extractFromImage(b64,mime,apiKey) {
+var raw = await callClaude([{role:“user”,content:[{type:“image”,source:{type:“base64”,media_type:mime,data:b64}},{type:“text”,text:“Extract the recipe from this image.”}]}],apiKey);
+return JSON.parse(raw.replace(/`json|`/g,””).trim());
+}
+
+// Compress image to reasonable size for localStorage
+async function compressImage(file) {
+return new Promise(function(resolve,reject) {
+var reader = new FileReader();
+reader.onload = function(e) {
+var img = new Image();
+img.onload = function() {
+var canvas = document.createElement(“canvas”);
+var MAX = 800;
+var w = img.width, h = img.height;
+if(w > h) { if(w>MAX){h=h*(MAX/w);w=MAX;} } else { if(h>MAX){w=w*(MAX/h);h=MAX;} }
+canvas.width=w; canvas.height=h;
+canvas.getContext(“2d”).drawImage(img,0,0,w,h);
+resolve(canvas.toDataURL(“image/jpeg”,0.7));
+};
+img.onerror = reject;
+img.src = e.target.result;
+};
+reader.onerror = reject;
+reader.readAsDataURL(file);
+});
+}
+
+var C = { cream:”#f5f0e8”, dark:”#2c2416”, orange:”#c4854a”, tan:”#ede7d8”, border:”#d6cbb8”, muted:”#8a7a62”, light:”#e8d9b8”, green:”#5a8a5a” };
 
 function Pill(props) {
-  return <span style={{ background:props.accent?C.orange:"rgba(255,255,255,0.13)", color:props.accent?"#fff":"#c9bfae", padding:"4px 12px", borderRadius:20, fontSize:13 }}>{props.children}</span>;
+return <span style={{background:props.accent?C.orange:“rgba(255,255,255,0.13)”,color:props.accent?”#fff”:”#c9bfae”,padding:“4px 12px”,borderRadius:20,fontSize:13}}>{props.children}</span>;
 }
 function Tag(props) {
-  return <span style={{ background:props.accent?C.orange:C.tan, color:props.accent?"#fff":"#5a4e3a", padding:"4px 12px", borderRadius:20, fontSize:13 }}>{props.children}</span>;
+return <span style={{background:props.accent?C.orange:C.tan,color:props.accent?”#fff”:”#5a4e3a”,padding:“4px 12px”,borderRadius:20,fontSize:13}}>{props.children}</span>;
 }
 function Sec(props) {
-  return <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:13, fontWeight:600, letterSpacing:"0.18em", textTransform:"uppercase", color:C.orange, marginTop:22, marginBottom:10, paddingBottom:6, borderBottom:"1px solid #e8e0d0" }}>{props.children}</div>;
+return <div style={{fontFamily:”‘Cormorant Garamond’,serif”,fontSize:13,fontWeight:600,letterSpacing:“0.18em”,textTransform:“uppercase”,color:C.orange,marginTop:22,marginBottom:10,paddingBottom:6,borderBottom:“1px solid #e8e0d0”}}>{props.children}</div>;
 }
 
+// ── Photo Slot component ─────────────────────────────────────────────────────
+function PhotoSlot(props) {
+var inputRef = useRef(null);
+var photo = props.photo;
+
+async function handlePick(e) {
+var file = e.target.files[0]; if(!file) return;
+try {
+var dataUrl = await compressImage(file);
+props.onChange(dataUrl);
+} catch(err) { alert(“Could not load photo.”); }
+e.target.value = “”;
+}
+
+return (
+<div style={{flex:1,minWidth:0}}>
+{photo
+? <div style={{position:“relative”}}>
+<img src={photo} alt=“Recipe photo” style={{width:“100%”,aspectRatio:“4/3”,objectFit:“cover”,borderRadius:10,display:“block”}} />
+<button onClick={function(){props.onChange(null);}}
+style={{position:“absolute”,top:6,right:6,background:“rgba(44,36,22,0.7)”,color:”#fff”,border:“none”,borderRadius:20,width:28,height:28,fontSize:14,cursor:“pointer”,display:“flex”,alignItems:“center”,justifyContent:“center”}}>✕</button>
+</div>
+: <div onClick={function(){inputRef.current.click();}}
+style={{width:“100%”,aspectRatio:“4/3”,background:”#f0ebe0”,border:“2px dashed “+C.border,borderRadius:10,display:“flex”,flexDirection:“column”,alignItems:“center”,justifyContent:“center”,cursor:“pointer”,gap:6}}>
+<span style={{fontSize:28}}>📷</span>
+<span style={{fontSize:13,color:C.muted}}>Add photo</span>
+</div>}
+<input ref={inputRef} type=“file” accept=“image/*” style={{display:“none”}} onChange={handlePick}/>
+</div>
+);
+}
+
+// ── Personal Notes editor ────────────────────────────────────────────────────
+function PersonalNotes(props) {
+var [editing, setEditing] = useState(false);
+var [draft,   setDraft]   = useState(props.value||””);
+
+function save() { props.onChange(draft); setEditing(false); }
+
+return (
+<div>
+<Sec>My Notes</Sec>
+{editing
+? <div>
+<textarea
+value={draft}
+onChange={function(e){setDraft(e.target.value);}}
+placeholder=“Add your own notes, tips, changes you made…”
+style={{width:“100%”,minHeight:100,border:“1.5px solid “+C.border,borderRadius:8,padding:“10px 12px”,fontFamily:”‘Crimson Pro’,serif”,fontSize:16,resize:“vertical”,outline:“none”,background:”#fff”,color:C.dark,lineHeight:1.6}}
+/>
+<div style={{display:“flex”,gap:8,marginTop:8}}>
+<button onClick={save} style={{background:C.dark,color:C.light,border:“none”,borderRadius:6,padding:“9px 18px”,fontFamily:”‘Crimson Pro’,serif”,fontSize:15,cursor:“pointer”}}>Save</button>
+<button onClick={function(){setDraft(props.value||””);setEditing(false);}} style={{background:“none”,border:“1px solid “+C.border,borderRadius:6,padding:“9px 18px”,fontFamily:”‘Crimson Pro’,serif”,fontSize:15,cursor:“pointer”,color:C.muted}}>Cancel</button>
+</div>
+</div>
+: <div
+onClick={function(){setEditing(true);}}
+style={{background:draft?”#faf7f2”:”#f5f0e8”,border:“1.5px dashed “+(draft?C.orange:C.border),borderRadius:8,padding:“12px 14px”,fontSize:16,lineHeight:1.7,color:draft?C.dark:C.muted,fontStyle:draft?“normal”:“italic”,cursor:“pointer”,minHeight:60}}>
+{draft || “Tap to add your personal notes…”}
+</div>}
+</div>
+);
+}
+
+// ── RecipeCard ───────────────────────────────────────────────────────────────
 function RecipeCard(props) {
-  var r = props.recipe;
-  return (
-    <div>
-      {!props.slim && (
-        <div style={{marginBottom:18}}>
-          <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:26,fontWeight:600}}>{r.name}</div>
-          <div style={{display:"flex",flexWrap:"wrap",gap:7,marginTop:8}}>
-            {r.cuisine  && <Tag accent>{r.cuisine}</Tag>}
-            {r.category && <Tag>{r.category}</Tag>}
-            {r.servings && <Tag>{"🍽 "+r.servings+" servings"}</Tag>}
-            {r.prepTime && <Tag>{"⏱ "+r.prepTime}</Tag>}
-            {r.cookTime && <Tag>{"🔥 "+r.cookTime}</Tag>}
-          </div>
-        </div>
-      )}
-      {r.ingredients && r.ingredients.length > 0 && (
-        <div>
-          <Sec>Ingredients</Sec>
-          {r.ingredients.map(function(ing,i){ return <div key={i} style={{display:"flex",gap:10,padding:"7px 0",fontSize:17,borderBottom:"1px solid #f0ebe0"}}><span style={{color:C.orange,fontSize:20,lineHeight:1.1}}>·</span><span>{ing}</span></div>; })}
-        </div>
-      )}
-      {r.steps && r.steps.length > 0 && (
-        <div>
-          <Sec>Preparation</Sec>
-          {r.steps.map(function(step,i){ return <div key={i} style={{display:"flex",gap:14,padding:"9px 0",fontSize:17,borderBottom:"1px solid #f0ebe0",alignItems:"flex-start"}}><span style={{fontFamily:"'Cormorant Garamond',serif",fontSize:20,color:C.orange,fontWeight:600,minWidth:20}}>{i+1}</span><span style={{lineHeight:1.7}}>{step.replace(/^Step\s*\d+[:.]\s*/i,"")}</span></div>; })}
-        </div>
-      )}
-      {r.notes && (
-        <div>
-          <Sec>Notes</Sec>
-          <div style={{background:"#faf7f2",borderLeft:"3px solid "+C.orange,padding:"14px 16px",borderRadius:"0 6px 6px 0",fontSize:16,lineHeight:1.6,color:"#5a4e3a",fontStyle:"italic"}}>{r.notes}</div>
-        </div>
-      )}
-    </div>
-  );
+var r = props.recipe;
+return (
+<div>
+{!props.slim && (
+<div style={{marginBottom:18}}>
+<div style={{fontFamily:”‘Cormorant Garamond’,serif”,fontSize:26,fontWeight:600}}>{r.name}</div>
+<div style={{display:“flex”,flexWrap:“wrap”,gap:7,marginTop:8}}>
+{r.cuisine  && <Tag accent>{r.cuisine}</Tag>}
+{r.category && <Tag>{r.category}</Tag>}
+{r.servings && <Tag>{“🍽 “+r.servings+” servings”}</Tag>}
+{r.prepTime && <Tag>{“⏱ “+r.prepTime}</Tag>}
+{r.cookTime && <Tag>{“🔥 “+r.cookTime}</Tag>}
+</div>
+</div>
+)}
+{r.ingredients&&r.ingredients.length>0&&(
+<div>
+<Sec>Ingredients</Sec>
+{r.ingredients.map(function(ing,i){ return <div key={i} style={{display:“flex”,gap:10,padding:“7px 0”,fontSize:17,borderBottom:“1px solid #f0ebe0”}}><span style={{color:C.orange,fontSize:20,lineHeight:1.1,flexShrink:0}}>·</span><span>{ing}</span></div>; })}
+</div>
+)}
+{r.steps&&r.steps.length>0&&(
+<div>
+<Sec>Preparation</Sec>
+{r.steps.map(function(step,i){ return (
+<div key={i} style={{display:“flex”,gap:14,padding:“9px 0”,fontSize:17,borderBottom:“1px solid #f0ebe0”,alignItems:“flex-start”}}>
+<span style={{fontFamily:”‘Cormorant Garamond’,serif”,fontSize:20,color:C.orange,fontWeight:600,minWidth:20,flexShrink:0}}>{i+1}</span>
+<span style={{lineHeight:1.7}}>{step.replace(/^Step\s*\d+[:.]\s*/i,””)}</span>
+</div>
+); })}
+</div>
+)}
+{r.notes&&(
+<div>
+<Sec>Recipe Notes</Sec>
+<div style={{background:”#faf7f2”,borderLeft:“3px solid “+C.orange,padding:“14px 16px”,borderRadius:“0 6px 6px 0”,fontSize:16,lineHeight:1.6,color:”#5a4e3a”,fontStyle:“italic”}}>{r.notes}</div>
+</div>
+)}
+</div>
+);
 }
 
+// ── Main App ─────────────────────────────────────────────────────────────────
 function App() {
-  var apiStored                 = localStorage.getItem(KEY_KEY) || "";
-  var [apiKey, setApiKey]       = useState(apiStored);
-  var [ready, setReady]         = useState(!!apiStored);
-  var [keyInput, setKeyInput]   = useState("");
-  var [recipes, setRecipes]     = useState(loadRecipes);
-  var [view, setView]           = useState("list");
-  var [selected, setSelected]   = useState(null);
-  var [search, setSearch]       = useState("");
-  var [url, setUrl]             = useState("");
-  var [loading, setLoading]     = useState(false);
-  var [loadMsg, setLoadMsg]     = useState("");
-  var [error, setError]         = useState("");
-  var [preview, setPreview]     = useState(null);
-  var fileRef                   = useRef(null);
+var apiStored               = localStorage.getItem(KEY_KEY)||””;
+var [apiKey,   setApiKey]   = useState(apiStored);
+var [ready,    setReady]    = useState(!!apiStored);
+var [keyInput, setKeyInput] = useState(””);
+var [recipes,  setRecipes]  = useState(loadRecipes);
+var [view,     setView]     = useState(“list”);
+var [selected, setSelected] = useState(null);
+var [search,   setSearch]   = useState(””);
+var [filter,   setFilter]   = useState(“all”); // all | done | todo
+var [url,      setUrl]      = useState(””);
+var [loading,  setLoading]  = useState(false);
+var [loadMsg,  setLoadMsg]  = useState(””);
+var [error,    setError]    = useState(””);
+var [preview,  setPreview]  = useState(null);
+var fileRef                 = useRef(null);
 
-  function persist(list) { var s = saveRecipes(list); setRecipes(s); }
+function persist(list) { var s=saveRecipes(list); setRecipes(s); return s; }
 
-  function saveKey() {
-    var k = keyInput.trim(); if (!k) return;
-    localStorage.setItem(KEY_KEY, k); setApiKey(k); setReady(true);
-  }
+function updateSelected(patch) {
+var updated = Object.assign({},selected,patch);
+setSelected(updated);
+persist(recipes.map(function(r){ return r.id===updated.id?updated:r; }));
+}
 
-  async function handleURL() {
-    if (!url.trim()) return;
-    setLoading(true); setError(""); setLoadMsg("Fetching recipe…");
-    try {
-      var r = await extractURL(url.trim(), apiKey);
-      r.id = Date.now()+""; r.source = url.trim(); r.addedAt = new Date().toISOString();
-      setPreview(r); setView("preview");
-    } catch(e) { setError("Couldn't extract from that link. Try another URL."); }
-    setLoading(false); setLoadMsg("");
-  }
+function saveKey() { var k=keyInput.trim(); if(!k) return; localStorage.setItem(KEY_KEY,k); setApiKey(k); setReady(true); }
 
-  async function handleImage(e) {
-    var file = e.target.files[0]; if (!file) return;
-    setLoading(true); setError(""); setLoadMsg("Reading recipe from photo…");
-    try {
-      var b64 = await new Promise(function(res,rej){ var fr=new FileReader(); fr.onload=function(){res(fr.result.split(",")[1]);}; fr.onerror=rej; fr.readAsDataURL(file); });
-      var r = await extractImage(b64, file.type, apiKey);
-      r.id = Date.now()+""; r.source = "Photo"; r.addedAt = new Date().toISOString();
-      setPreview(r); setView("preview");
-    } catch(e) { setError("Couldn't read the recipe from that photo."); }
-    setLoading(false); setLoadMsg(""); e.target.value = "";
-  }
+async function handleURL() {
+if(!url.trim()) return;
+setLoading(true); setError(””); setLoadMsg(“Fetching recipe…”);
+try {
+var r = await extractFromURL(url.trim(),apiKey);
+r.id=Date.now()+””; r.source=url.trim(); r.addedAt=new Date().toISOString();
+r.done=false; r.myNotes=””; r.photos=[null,null];
+setPreview(r); setView(“preview”);
+} catch(e) { setError(“Couldn’t extract from that link. Make sure it’s a public recipe page (Facebook/Instagram require login — use a photo instead).”); }
+setLoading(false); setLoadMsg(””);
+}
 
-  function confirmSave() { persist([...recipes, preview]); setSelected(preview); setPreview(null); setUrl(""); setView("detail"); }
-  function deleteRecipe(id) { persist(recipes.filter(function(r){return r.id!==id;})); setView("list"); setSelected(null); }
+async function handleImage(e) {
+var file=e.target.files[0]; if(!file) return;
+setLoading(true); setError(””); setLoadMsg(“Reading recipe from photo…”);
+try {
+var b64=await new Promise(function(res,rej){var fr=new FileReader();fr.onload=function(){res(fr.result.split(”,”)[1]);};fr.onerror=rej;fr.readAsDataURL(file);});
+var r=await extractFromImage(b64,file.type,apiKey);
+r.id=Date.now()+””; r.source=“Photo”; r.addedAt=new Date().toISOString();
+r.done=false; r.myNotes=””; r.photos=[null,null];
+setPreview(r); setView(“preview”);
+} catch(e) { setError(“Couldn’t read the recipe from that photo.”); }
+setLoading(false); setLoadMsg(””); e.target.value=””;
+}
 
-  var filtered = recipes.filter(function(r){ var q=search.toLowerCase(); return r.name.toLowerCase().includes(q)||(r.cuisine||"").toLowerCase().includes(q)||(r.category||"").toLowerCase().includes(q); });
-  var grouped = {}; filtered.forEach(function(r){ var l=(r.name[0]||"#").toUpperCase(); if(!grouped[l]) grouped[l]=[]; grouped[l].push(r); });
-  var letters = Object.keys(grouped).sort();
+function confirmSave() { persist([…recipes,preview]); setSelected(preview); setPreview(null); setUrl(””); setView(“detail”); }
+function deleteRecipe(id) { persist(recipes.filter(function(r){return r.id!==id;})); setView(“list”); setSelected(null); }
+function goBack() { setView(“list”); setPreview(null); setError(””); }
 
-  if (!ready) return (
-    <div style={{minHeight:"100vh",background:C.dark,display:"flex",alignItems:"center",justifyContent:"center",padding:24}}>
-      <div style={{background:C.cream,borderRadius:16,padding:32,maxWidth:380,width:"100%",textAlign:"center"}}>
-        <div style={{fontSize:56,marginBottom:12}}>📖</div>
-        <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:30,fontWeight:600,marginBottom:14}}>Jojo's Recipes</div>
-        <div style={{fontSize:16,color:C.muted,lineHeight:1.7,marginBottom:24}}>
-          To read recipes from links and photos, enter your <strong>Anthropic API key</strong> below.<br/><br/>
-          Get one free at <a href="https://console.anthropic.com" target="_blank" style={{color:C.orange}}>console.anthropic.com</a> → API Keys → Create key.
-        </div>
-        <input style={{width:"100%",border:"1.5px solid "+C.border,borderRadius:8,padding:"12px 14px",fontFamily:"'Crimson Pro',serif",fontSize:15,marginBottom:14,outline:"none",background:"#fff"}}
-          type="password" placeholder="sk-ant-api03-…"
-          value={keyInput} onChange={function(e){setKeyInput(e.target.value);}} onKeyDown={function(e){if(e.key==="Enter")saveKey();}} />
-        <button style={{width:"100%",background:C.orange,color:"#fff",border:"none",borderRadius:8,padding:14,fontFamily:"'Cormorant Garamond',serif",fontSize:18,cursor:"pointer"}}
-          onClick={saveKey} disabled={!keyInput.trim()}>Open my recipe book →</button>
+function toggleDone(id,e) {
+e.stopPropagation();
+var updated = recipes.map(function(r){ return r.id===id?Object.assign({},r,{done:!r.done}):r; });
+persist(updated);
+if(selected&&selected.id===id) setSelected(Object.assign({},selected,{done:!selected.done}));
+}
+
+function updatePhoto(idx,dataUrl) {
+var photos = (selected.photos||[null,null]).slice();
+photos[idx] = dataUrl;
+updateSelected({photos:photos});
+}
+
+// Filtering
+var filtered = recipes.filter(function(r){
+var q=search.toLowerCase();
+var matchQ = r.name.toLowerCase().includes(q)||(r.cuisine||””).toLowerCase().includes(q)||(r.category||””).toLowerCase().includes(q);
+var matchF = filter===“all” || (filter===“done”&&r.done) || (filter===“todo”&&!r.done);
+return matchQ&&matchF;
+});
+var grouped={};
+filtered.forEach(function(r){ var l=(r.name[0]||”#”).toUpperCase(); if(!grouped[l]) grouped[l]=[]; grouped[l].push(r); });
+var letters=Object.keys(grouped).sort();
+
+var doneCount = recipes.filter(function(r){return r.done;}).length;
+
+var headerStyle = { background:C.dark, paddingTop:“calc(16px + env(safe-area-inset-top,0px))”, paddingBottom:“16px”, paddingLeft:“24px”, paddingRight:“24px”, display:“flex”, alignItems:“center”, justifyContent:“space-between”, position:“sticky”, top:0, zIndex:50 };
+
+// ── Setup ──
+if(!ready) return (
+<div style={{minHeight:“100vh”,background:C.dark,display:“flex”,alignItems:“center”,justifyContent:“center”,padding:24,paddingTop:“calc(24px + env(safe-area-inset-top,0px))”}}>
+<div style={{background:C.cream,borderRadius:16,padding:32,maxWidth:380,width:“100%”,textAlign:“center”}}>
+<div style={{fontSize:56,marginBottom:12}}>📖</div>
+<div style={{fontFamily:”‘Cormorant Garamond’,serif”,fontSize:30,fontWeight:600,marginBottom:14}}>Jojo’s Recipes</div>
+<div style={{fontSize:16,color:C.muted,lineHeight:1.7,marginBottom:24}}>
+To read recipes from links and photos, enter your <strong>Anthropic API key</strong> below.<br/><br/>
+Get one free at <a href="https://console.anthropic.com" target="_blank" style={{color:C.orange}}>console.anthropic.com</a> → API Keys → Create key.
+</div>
+<input style={{width:“100%”,border:“1.5px solid “+C.border,borderRadius:8,padding:“12px 14px”,fontFamily:”‘Crimson Pro’,serif”,fontSize:15,marginBottom:14,outline:“none”,background:”#fff”,color:C.dark}}
+type=“password” placeholder=“sk-ant-api03-…” value={keyInput}
+onChange={function(e){setKeyInput(e.target.value);}} onKeyDown={function(e){if(e.key===“Enter”)saveKey();}} />
+<button style={{width:“100%”,background:C.orange,color:”#fff”,border:“none”,borderRadius:8,padding:14,fontFamily:”‘Cormorant Garamond’,serif”,fontSize:18,cursor:“pointer”}}
+onClick={saveKey} disabled={!keyInput.trim()}>Open my recipe book →</button>
+</div>
+</div>
+);
+
+return (
+<div style={{minHeight:“100vh”,background:C.cream,paddingBottom:“calc(40px + env(safe-area-inset-bottom,0px))”}}>
+
+```
+  {loading&&<div style={{position:"fixed",inset:0,background:"rgba(44,36,22,0.78)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",zIndex:999,gap:18}}>
+    <div style={{width:40,height:40,border:"3px solid #8a7a62",borderTopColor:C.orange,borderRadius:"50%",animation:"spin 0.9s linear infinite"}}/>
+    <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:20,color:C.light}}>{loadMsg}</div>
+  </div>}
+
+  {/* Header */}
+  <div style={headerStyle}>
+    <div style={{display:"flex",alignItems:"baseline"}}>
+      <span style={{fontFamily:"'Cormorant Garamond',serif",fontSize:24,fontWeight:600,color:C.light}}>Jojo's <span style={{color:C.orange}}>Recipes</span></span>
+      {view==="list"&&recipes.length>0&&<span style={{background:C.orange,color:"#fff",fontSize:11,padding:"2px 8px",borderRadius:10,marginLeft:8}}>{recipes.length}</span>}
+    </div>
+    {view==="list"
+      ? <button style={{background:C.orange,color:"#fff",border:"none",borderRadius:6,padding:"8px 16px",fontFamily:"'Crimson Pro',serif",fontSize:15,cursor:"pointer"}} onClick={function(){setView("add");setError("");setUrl("");}}>+ Add</button>
+      : <button style={{background:"none",border:"none",color:C.light,fontFamily:"'Crimson Pro',serif",fontSize:16,cursor:"pointer",padding:"8px 0"}} onClick={goBack}>← Back</button>}
+  </div>
+
+  {/* ── LIST ── */}
+  {view==="list"&&<>
+    {/* Search */}
+    <div style={{padding:"12px 24px 0",background:C.tan,borderBottom:"1px solid "+C.border}}>
+      <input style={{width:"100%",background:"#fff",border:"1.5px solid "+C.border,borderRadius:8,padding:"10px 14px",fontFamily:"'Crimson Pro',serif",fontSize:16,outline:"none",marginBottom:10}}
+        placeholder="Search recipes, cuisines…" value={search} onChange={function(e){setSearch(e.target.value);}} />
+      {/* Filter tabs */}
+      <div style={{display:"flex",gap:6,paddingBottom:12}}>
+        {["all","todo","done"].map(function(f){ return (
+          <button key={f} onClick={function(){setFilter(f);}}
+            style={{flex:1,background:filter===f?C.dark:"transparent",color:filter===f?C.light:C.muted,border:"1px solid "+(filter===f?C.dark:C.border),borderRadius:6,padding:"6px 4px",fontFamily:"'Crimson Pro',serif",fontSize:14,cursor:"pointer",letterSpacing:"0.04em"}}>
+            {f==="all"?"All ("+recipes.length+")":f==="done"?"✓ Made ("+doneCount+")":"To try ("+(recipes.length-doneCount)+")"}
+          </button>
+        ); })}
       </div>
     </div>
-  );
 
-  return (
-    <div style={{minHeight:"100vh",background:C.cream,paddingBottom:60}}>
+    {recipes.length===0&&<div style={{textAlign:"center",padding:"60px 24px",color:C.muted}}>
+      <div style={{fontSize:52,marginBottom:16}}>📖</div>
+      <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:22,color:C.dark,marginBottom:8}}>Your recipe book is empty</div>
+      <div style={{fontSize:16,lineHeight:1.6}}>Tap <strong>+ Add</strong> to get started.</div>
+    </div>}
+    {recipes.length>0&&filtered.length===0&&<div style={{textAlign:"center",padding:"60px 24px",color:C.muted}}>
+      <div style={{fontSize:36,marginBottom:12}}>🔍</div>
+      <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:22,color:C.dark}}>No matches</div>
+    </div>}
 
-      {loading && <div style={{position:"fixed",inset:0,background:"rgba(44,36,22,0.78)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",zIndex:999,gap:18}}>
-        <div style={{width:40,height:40,border:"3px solid #8a7a62",borderTopColor:C.orange,borderRadius:"50%",animation:"spin 0.9s linear infinite"}}/>
-        <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:20,color:C.light}}>{loadMsg}</div>
-      </div>}
-
-      <div style={{background:C.dark,padding:"16px 24px",display:"flex",alignItems:"center",justifyContent:"space-between",position:"sticky",top:0,zIndex:50}}>
-        <div style={{display:"flex",alignItems:"baseline"}}>
-          <span style={{fontFamily:"'Cormorant Garamond',serif",fontSize:24,fontWeight:600,color:C.light}}>Jojo's <span style={{color:C.orange}}>Recipes</span></span>
-          {view==="list"&&recipes.length>0&&<span style={{background:C.orange,color:"#fff",fontSize:11,padding:"2px 8px",borderRadius:10,marginLeft:8}}>{recipes.length}</span>}
-        </div>
-        {view==="list"
-          ? <button style={{background:C.orange,color:"#fff",border:"none",borderRadius:6,padding:"8px 16px",fontFamily:"'Crimson Pro',serif",fontSize:15,cursor:"pointer"}} onClick={function(){setView("add");setError("");setUrl("");}}>+ Add</button>
-          : <button style={{background:"none",border:"none",color:C.muted,fontFamily:"'Crimson Pro',serif",fontSize:16,cursor:"pointer"}} onClick={function(){setView("list");setPreview(null);setError("");}}>← Back</button>}
-      </div>
-
-      {view==="list" && <>
-        <div style={{padding:"14px 24px",background:C.tan,borderBottom:"1px solid "+C.border}}>
-          <input style={{width:"100%",background:"#fff",border:"1.5px solid "+C.border,borderRadius:8,padding:"10px 14px",fontFamily:"'Crimson Pro',serif",fontSize:16,outline:"none"}}
-            placeholder="Search recipes, cuisines…" value={search} onChange={function(e){setSearch(e.target.value);}} />
-        </div>
-        {recipes.length===0 && <div style={{textAlign:"center",padding:"60px 24px",color:C.muted}}>
-          <div style={{fontSize:52,marginBottom:16}}>📖</div>
-          <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:22,color:C.dark,marginBottom:8}}>Your recipe book is empty</div>
-          <div style={{fontSize:16,lineHeight:1.6}}>Tap <strong>+ Add</strong> and paste a link<br/>or upload a photo.</div>
-        </div>}
-        {recipes.length>0&&filtered.length===0&&<div style={{textAlign:"center",padding:"60px 24px",color:C.muted}}>
-          <div style={{fontSize:36,marginBottom:12}}>🔍</div>
-          <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:22,color:C.dark}}>No matches</div>
-        </div>}
-        {letters.map(function(l){ return (
-          <div key={l}>
-            <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:12,fontWeight:600,letterSpacing:"0.2em",textTransform:"uppercase",color:C.orange,padding:"14px 24px 4px"}}>{l}</div>
-            {grouped[l].map(function(r){ return (
-              <div key={r.id} style={{display:"flex",alignItems:"center",padding:"13px 24px",borderBottom:"1px solid #e8e0d0",cursor:"pointer"}} onClick={function(){setSelected(r);setView("detail");}}>
-                <div style={{flex:1}}>
-                  <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:19,fontWeight:500}}>{r.name}</div>
-                  {(r.cuisine||r.category)&&<div style={{fontSize:13,color:C.muted,marginTop:2}}>{[r.cuisine,r.category].filter(Boolean).join(" · ")}</div>}
-                </div>
-                <div style={{color:C.orange,fontSize:22,marginLeft:8}}>›</div>
-              </div>
-            ); })}
+    {letters.map(function(l){ return (
+      <div key={l}>
+        <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:12,fontWeight:600,letterSpacing:"0.2em",textTransform:"uppercase",color:C.orange,padding:"14px 24px 4px"}}>{l}</div>
+        {grouped[l].map(function(r){ return (
+          <div key={r.id} style={{display:"flex",alignItems:"center",padding:"11px 16px 11px 24px",borderBottom:"1px solid #e8e0d0",gap:10}}>
+            {/* Done toggle */}
+            <button onClick={function(e){toggleDone(r.id,e);}}
+              style={{width:30,height:30,borderRadius:"50%",border:"2px solid "+(r.done?C.green:C.border),background:r.done?C.green:"transparent",color:"#fff",fontSize:15,cursor:"pointer",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",transition:"all 0.15s"}}>
+              {r.done?"✓":""}
+            </button>
+            {/* Row content */}
+            <div style={{flex:1,cursor:"pointer",minWidth:0}} onClick={function(){setSelected(r);setView("detail");}}>
+              <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:19,fontWeight:500,opacity:r.done?0.5:1,textDecoration:r.done?"line-through":"none",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{r.name}</div>
+              {(r.cuisine||r.category)&&<div style={{fontSize:13,color:C.muted,marginTop:1}}>{[r.cuisine,r.category].filter(Boolean).join(" · ")}</div>}
+            </div>
+            <div style={{color:C.orange,fontSize:22,cursor:"pointer"}} onClick={function(){setSelected(r);setView("detail");}}>›</div>
           </div>
         ); })}
-      </>}
+      </div>
+    ); })}
+  </>}
 
-      {view==="add" && <div style={{padding:24,maxWidth:600,margin:"0 auto"}}>
-        <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:26,fontWeight:600,marginBottom:6}}>Add a Recipe</div>
-        <div style={{fontSize:15,color:C.muted,marginBottom:24,lineHeight:1.5}}>Paste a link from any cooking site, or upload a photo of a recipe card.</div>
-        <div style={{background:"#fff",border:"1.5px solid "+C.border,borderRadius:10,padding:20,marginBottom:14}}>
-          <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:17,fontWeight:600,marginBottom:12}}>🔗 From a URL</div>
-          <div style={{display:"flex",gap:8}}>
-            <input style={{flex:1,border:"1.5px solid "+C.border,borderRadius:6,padding:"10px 12px",fontFamily:"'Crimson Pro',serif",fontSize:15,outline:"none"}}
-              placeholder="https://…" value={url} onChange={function(e){setUrl(e.target.value);}} onKeyDown={function(e){if(e.key==="Enter")handleURL();}} />
-            <button style={{background:C.dark,color:C.light,border:"none",borderRadius:6,padding:"10px 18px",fontFamily:"'Crimson Pro',serif",fontSize:15,cursor:"pointer",opacity:loading||!url.trim()?0.5:1}}
-              onClick={handleURL} disabled={loading||!url.trim()}>Go</button>
-          </div>
-        </div>
-        <div style={{background:"#fff",border:"1.5px solid "+C.border,borderRadius:10,padding:20,marginBottom:14}}>
-          <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:17,fontWeight:600,marginBottom:12}}>📷 From a Photo</div>
-          <div style={{border:"2px dashed "+C.border,borderRadius:8,padding:24,textAlign:"center",cursor:"pointer"}} onClick={function(){fileRef.current.click();}}>
-            <div style={{fontSize:32,marginBottom:6}}>📸</div>
-            <div style={{fontSize:15,color:C.muted}}>Tap to choose a photo</div>
-            <div style={{fontSize:13,color:"#b0a390",marginTop:4}}>Recipe cards, screenshots, handwritten notes</div>
-          </div>
-          <input ref={fileRef} type="file" accept="image/*" style={{display:"none"}} onChange={handleImage} />
-        </div>
-        {error&&<div style={{background:"#fdf0e8",border:"1px solid #e8b48a",borderRadius:6,padding:"12px 14px",fontSize:14,color:"#8a3a10"}}>⚠️ {error}</div>}
-      </div>}
+  {/* ── ADD ── */}
+  {view==="add"&&<div style={{padding:24,maxWidth:600,margin:"0 auto"}}>
+    <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:26,fontWeight:600,marginBottom:6}}>Add a Recipe</div>
+    <div style={{fontSize:15,color:C.muted,marginBottom:24,lineHeight:1.5}}>
+      Paste a link from any public recipe site, or upload a photo.<br/>
+      <span style={{fontSize:13,color:"#b0a390"}}>Facebook/Instagram links won't work — use the photo option instead.</span>
+    </div>
+    <div style={{background:"#fff",border:"1.5px solid "+C.border,borderRadius:10,padding:20,marginBottom:14}}>
+      <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:17,fontWeight:600,marginBottom:12}}>🔗 From a URL</div>
+      <div style={{display:"flex",gap:8}}>
+        <input style={{flex:1,border:"1.5px solid "+C.border,borderRadius:6,padding:"10px 12px",fontFamily:"'Crimson Pro',serif",fontSize:15,outline:"none",color:C.dark,minWidth:0}}
+          placeholder="https://…" value={url} onChange={function(e){setUrl(e.target.value);}} onKeyDown={function(e){if(e.key==="Enter")handleURL();}} />
+        <button style={{background:C.dark,color:C.light,border:"none",borderRadius:6,padding:"10px 18px",fontFamily:"'Crimson Pro',serif",fontSize:15,cursor:"pointer",opacity:loading||!url.trim()?0.5:1,flexShrink:0}}
+          onClick={handleURL} disabled={loading||!url.trim()}>Go</button>
+      </div>
+    </div>
+    <div style={{background:"#fff",border:"1.5px solid "+C.border,borderRadius:10,padding:20,marginBottom:14}}>
+      <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:17,fontWeight:600,marginBottom:12}}>📷 From a Photo</div>
+      <div style={{border:"2px dashed "+C.border,borderRadius:8,padding:24,textAlign:"center",cursor:"pointer"}} onClick={function(){fileRef.current.click();}}>
+        <div style={{fontSize:32,marginBottom:6}}>📸</div>
+        <div style={{fontSize:15,color:C.muted}}>Tap to choose a photo</div>
+        <div style={{fontSize:13,color:"#b0a390",marginTop:4}}>Recipe cards, screenshots, handwritten notes</div>
+      </div>
+      <input ref={fileRef} type="file" accept="image/*" style={{display:"none"}} onChange={handleImage}/>
+    </div>
+    {error&&<div style={{background:"#fdf0e8",border:"1px solid #e8b48a",borderRadius:6,padding:"12px 14px",fontSize:14,color:"#8a3a10"}}>⚠️ {error}</div>}
+  </div>}
 
-      {view==="preview"&&preview&&<div>
-        <div style={{background:C.orange,color:"#fff",padding:"10px 20px",fontSize:13,letterSpacing:"0.06em",textTransform:"uppercase"}}>✓ Recipe extracted — review before saving</div>
-        <div style={{padding:24,maxWidth:600,margin:"0 auto"}}>
-          <RecipeCard recipe={preview} />
-          <div style={{display:"flex",gap:10,marginTop:20}}>
-            <button style={{flex:1,background:C.dark,color:C.light,border:"none",borderRadius:8,padding:13,fontFamily:"'Cormorant Garamond',serif",fontSize:17,cursor:"pointer"}} onClick={confirmSave}>Save to my book</button>
-            <button style={{flex:1,background:"none",color:C.muted,border:"1.5px solid "+C.border,borderRadius:8,padding:13,fontFamily:"'Cormorant Garamond',serif",fontSize:17,cursor:"pointer"}} onClick={function(){setView("add");setPreview(null);}}>Discard</button>
-          </div>
-        </div>
-      </div>}
+  {/* ── PREVIEW ── */}
+  {view==="preview"&&preview&&<div>
+    <div style={{background:C.orange,color:"#fff",padding:"10px 20px",fontSize:13,letterSpacing:"0.06em",textTransform:"uppercase"}}>✓ Recipe extracted — review before saving</div>
+    <div style={{padding:24,maxWidth:600,margin:"0 auto"}}>
+      <RecipeCard recipe={preview}/>
+      <div style={{display:"flex",gap:10,marginTop:20}}>
+        <button style={{flex:1,background:C.dark,color:C.light,border:"none",borderRadius:8,padding:13,fontFamily:"'Cormorant Garamond',serif",fontSize:17,cursor:"pointer"}} onClick={confirmSave}>Save to my book</button>
+        <button style={{flex:1,background:"none",color:C.muted,border:"1.5px solid "+C.border,borderRadius:8,padding:13,fontFamily:"'Cormorant Garamond',serif",fontSize:17,cursor:"pointer"}} onClick={function(){setView("add");setPreview(null);}}>Discard</button>
+      </div>
+    </div>
+  </div>}
 
-      {view==="detail"&&selected&&<div>
-        <div style={{background:C.dark,padding:"20px 24px"}}>
+  {/* ── DETAIL ── */}
+  {view==="detail"&&selected&&<div>
+    <div style={{background:C.dark,padding:"20px 24px"}}>
+      <div style={{display:"flex",alignItems:"flex-start",gap:12}}>
+        <div style={{flex:1}}>
           <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:26,color:C.light,fontWeight:600}}>{selected.name}</div>
           <div style={{display:"flex",flexWrap:"wrap",gap:7,marginTop:10}}>
             {selected.cuisine&&<Pill accent>{selected.cuisine}</Pill>}
@@ -335,18 +449,41 @@ function App() {
             {selected.cookTime&&<Pill>{"🔥 Cook "+selected.cookTime}</Pill>}
           </div>
         </div>
-        <div style={{padding:"22px 24px 60px"}}>
-          <RecipeCard recipe={selected} slim={true} />
-          {selected.source&&selected.source!=="Photo"&&<div style={{fontSize:13,color:C.muted,marginTop:18,wordBreak:"break-all"}}>Source: <a href={selected.source} target="_blank" style={{color:C.orange}}>{selected.source}</a></div>}
-          <button style={{marginTop:26,background:"none",border:"1px solid "+C.border,borderRadius:6,padding:"10px 18px",color:C.muted,fontFamily:"'Crimson Pro',serif",fontSize:14,cursor:"pointer"}} onClick={function(){deleteRecipe(selected.id);}}>🗑 Remove recipe</button>
-        </div>
-      </div>}
-
+        {/* Done toggle in detail */}
+        <button onClick={function(e){toggleDone(selected.id,e);}}
+          style={{flexShrink:0,background:selected.done?C.green:"transparent",border:"2px solid "+(selected.done?C.green:"rgba(255,255,255,0.3)"),borderRadius:8,padding:"6px 12px",color:selected.done?"#fff":"rgba(255,255,255,0.6)",fontFamily:"'Crimson Pro',serif",fontSize:14,cursor:"pointer",marginTop:4}}>
+          {selected.done?"✓ Made it":"Mark as made"}
+        </button>
+      </div>
     </div>
-  );
+
+    <div style={{padding:"22px 24px 60px"}}>
+      <RecipeCard recipe={selected} slim={true}/>
+
+      {/* ── MY PHOTOS ── */}
+      <Sec>My Photos</Sec>
+      <div style={{display:"flex",gap:12,marginBottom:4}}>
+        <PhotoSlot photo={(selected.photos||[null,null])[0]} onChange={function(d){updatePhoto(0,d);}}/>
+        <PhotoSlot photo={(selected.photos||[null,null])[1]} onChange={function(d){updatePhoto(1,d);}}/>
+      </div>
+
+      {/* ── MY NOTES ── */}
+      <PersonalNotes value={selected.myNotes||""} onChange={function(v){updateSelected({myNotes:v});}}/>
+
+      {/* Source + delete */}
+      {selected.source&&selected.source!=="Photo"&&<div style={{fontSize:13,color:C.muted,marginTop:20,wordBreak:"break-all"}}>Source: <a href={selected.source} target="_blank" style={{color:C.orange}}>{selected.source}</a></div>}
+      <button style={{marginTop:24,background:"none",border:"1px solid "+C.border,borderRadius:6,padding:"10px 18px",color:C.muted,fontFamily:"'Crimson Pro',serif",fontSize:14,cursor:"pointer"}}
+        onClick={function(){deleteRecipe(selected.id);}}>🗑 Remove recipe</button>
+    </div>
+  </div>}
+
+</div>
+```
+
+);
 }
 
-ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+ReactDOM.createRoot(document.getElementById(“root”)).render(<App/>);
 </script>
 
 </body>
