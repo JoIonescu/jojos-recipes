@@ -2,538 +2,742 @@
 
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
   <title>Jojo's Recipes</title>
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="Jojo's Recipes" />
-  <meta name="theme-color" content="#2c2416" />
-  <link rel="apple-touch-icon" href="icon.svg" />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600&family=Crimson+Pro:wght@300;400;500&display=swap" rel="stylesheet" />
-  <!-- React only — no Babel needed -->
-  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="apple-mobile-web-app-title" content="Jojo's Recipes"/>
+  <meta name="theme-color" content="#2c2416"/>
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body { height: 100%; overscroll-behavior: none; }
-    body { background: #f5f0e8; font-family: 'Crimson Pro', Georgia, serif; color: #2c2416; -webkit-font-smoothing: antialiased; }
-    #root { height: 100%; }
-    #err { display:none; padding:24px; font-size:13px; color:#c00; background:#fff8f8; white-space:pre-wrap; word-break:break-all; }
-    @keyframes spin { to { transform: rotate(360deg); } }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    html,body{height:100%;overscroll-behavior:none}
+    body{background:#f5f0e8;font-family:Georgia,serif;color:#2c2416;-webkit-font-smoothing:antialiased}
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+```
+/* Layout */
+#app{min-height:100vh;background:#f5f0e8;padding-bottom:60px}
+.screen{display:none}.screen.active{display:block}
+
+/* Header */
+#header{
+  background:#2c2416;
+  padding-top:calc(16px + env(safe-area-inset-top,0px));
+  padding-bottom:16px;padding-left:24px;padding-right:24px;
+  display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;z-index:50
+}
+#logo{font-size:22px;font-weight:bold;color:#e8d9b8}
+#logo span{color:#c4854a}
+#recipe-count{background:#c4854a;color:#fff;font-size:11px;padding:2px 8px;border-radius:10px;margin-left:8px;display:none}
+#header-btn{background:#c4854a;color:#fff;border:none;border-radius:6px;padding:8px 16px;font-size:15px;cursor:pointer}
+
+/* Search bar */
+#search-bar{padding:12px 24px 0;background:#ede7d8;border-bottom:1px solid #d6cbb8}
+#search-input{width:100%;background:#fff;border:1.5px solid #d6cbb8;border-radius:8px;padding:10px 14px;font-size:16px;outline:none;margin-bottom:10px;font-family:Georgia,serif}
+#filter-row{display:flex;gap:6px;padding-bottom:12px}
+.filter-btn{flex:1;background:transparent;color:#8a7a62;border:1px solid #d6cbb8;border-radius:6px;padding:6px 4px;font-size:13px;cursor:pointer;font-family:Georgia,serif}
+.filter-btn.active{background:#2c2416;color:#e8d9b8;border-color:#2c2416}
+
+/* Recipe list */
+#list-body{padding-bottom:40px}
+.letter-head{font-size:11px;font-weight:bold;letter-spacing:0.2em;text-transform:uppercase;color:#c4854a;padding:14px 24px 4px}
+.recipe-row{display:flex;align-items:center;padding:11px 16px 11px 20px;border-bottom:1px solid #e8e0d0;gap:10px}
+.done-btn{width:30px;height:30px;border-radius:50%;border:2px solid #d6cbb8;background:transparent;color:#fff;font-size:14px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+.done-btn.done{background:#4a8a4a;border-color:#4a8a4a}
+.row-info{flex:1;cursor:pointer;min-width:0}
+.row-name{font-size:19px;font-weight:bold;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row-name.done{opacity:0.5;text-decoration:line-through}
+.row-meta{font-size:13px;color:#8a7a62;margin-top:2px}
+.row-arrow{color:#c4854a;font-size:22px;cursor:pointer;flex-shrink:0}
+
+/* Empty state */
+.empty-state{text-align:center;padding:60px 24px;color:#8a7a62}
+.empty-state .icon{font-size:52px;margin-bottom:16px}
+.empty-state h2{font-size:22px;color:#2c2416;margin-bottom:8px}
+.empty-state p{font-size:16px;line-height:1.6}
+
+/* Panel (add/detail) */
+.panel{padding:24px;max-width:600px;margin:0 auto}
+.panel h2{font-size:26px;font-weight:bold;margin-bottom:6px}
+.panel .sub{font-size:15px;color:#8a7a62;margin-bottom:24px;line-height:1.5}
+.card{background:#fff;border:1.5px solid #d6cbb8;border-radius:10px;padding:20px;margin-bottom:14px}
+.card h3{font-size:17px;font-weight:bold;margin-bottom:12px}
+.url-row{display:flex;gap:8px}
+.url-input{flex:1;border:1.5px solid #d6cbb8;border-radius:6px;padding:10px 12px;font-size:15px;outline:none;color:#2c2416;min-width:0;font-family:Georgia,serif}
+.go-btn{background:#2c2416;color:#e8d9b8;border:none;border-radius:6px;padding:10px 18px;font-size:15px;cursor:pointer;flex-shrink:0}
+.go-btn:disabled{opacity:0.4;cursor:default}
+.drop-zone{border:2px dashed #d6cbb8;border-radius:8px;padding:24px;text-align:center;cursor:pointer}
+.drop-zone .icon{font-size:32px;margin-bottom:6px}
+.drop-zone p{font-size:15px;color:#8a7a62}
+.drop-zone small{font-size:13px;color:#b0a390;margin-top:4px;display:block}
+.error-box{background:#fdf0e8;border:1px solid #e8b48a;border-radius:6px;padding:12px 14px;font-size:14px;color:#8a3a10;margin-top:4px}
+
+/* Preview banner */
+#preview-banner{background:#c4854a;color:#fff;padding:10px 20px;font-size:13px;letter-spacing:0.06em;text-transform:uppercase}
+.confirm-row{display:flex;gap:10px;margin-top:20px}
+.confirm-btn{flex:1;background:#2c2416;color:#e8d9b8;border:none;border-radius:8px;padding:13px;font-size:17px;cursor:pointer;font-family:Georgia,serif}
+.discard-btn{flex:1;background:none;color:#8a7a62;border:1.5px solid #d6cbb8;border-radius:8px;padding:13px;font-size:17px;cursor:pointer;font-family:Georgia,serif}
+
+/* Detail header */
+#detail-header{background:#2c2416;padding:20px 24px}
+#detail-title{font-size:26px;color:#e8d9b8;font-weight:bold;margin-bottom:10px}
+#detail-pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:10px}
+.pill{background:rgba(255,255,255,0.13);color:#c9bfae;padding:4px 12px;border-radius:20px;font-size:13px}
+.pill.accent{background:#c4854a;color:#fff}
+#mark-btn{background:transparent;border:2px solid rgba(255,255,255,0.35);border-radius:8px;padding:6px 12px;color:rgba(255,255,255,0.65);font-size:14px;cursor:pointer;white-space:nowrap;margin-top:4px}
+#mark-btn.done{background:#4a8a4a;border-color:#4a8a4a;color:#fff}
+
+/* Recipe content */
+.sec-title{font-size:12px;font-weight:bold;letter-spacing:0.18em;text-transform:uppercase;color:#c4854a;margin-top:22px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid #e8e0d0}
+.ing-row{display:flex;gap:10px;padding:7px 0;font-size:17px;border-bottom:1px solid #f0ebe0}
+.ing-dot{color:#c4854a;font-size:20px;line-height:1.1;flex-shrink:0}
+.step-row{display:flex;gap:14px;padding:9px 0;font-size:17px;border-bottom:1px solid #f0ebe0;align-items:flex-start}
+.step-num{font-size:20px;color:#c4854a;font-weight:bold;min-width:20px;flex-shrink:0;line-height:1.3}
+.step-text{line-height:1.7}
+.notes-box{background:#faf7f2;border-left:3px solid #c4854a;padding:14px 16px;border-radius:0 6px 6px 0;font-size:16px;line-height:1.6;color:#5a4e3a;font-style:italic;margin-top:8px}
+
+/* Photos */
+.photo-row{display:flex;gap:12px;margin-bottom:4px}
+.photo-slot{flex:1;position:relative}
+.photo-slot img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:10px;display:block}
+.photo-remove{position:absolute;top:6px;right:6px;background:rgba(44,36,22,0.75);color:#fff;border:none;border-radius:50%;width:28px;height:28px;font-size:14px;cursor:pointer}
+.photo-placeholder{width:100%;aspect-ratio:4/3;background:#f0ebe0;border:2px dashed #d6cbb8;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;gap:6px}
+.photo-placeholder span{font-size:28px}
+.photo-placeholder p{font-size:13px;color:#8a7a62}
+
+/* My notes */
+.my-notes-view{background:#f5f0e8;border:1.5px dashed #d6cbb8;border-radius:8px;padding:12px 14px;font-size:16px;line-height:1.7;color:#8a7a62;font-style:italic;cursor:pointer;min-height:60px}
+.my-notes-view.has-notes{background:#faf7f2;border-color:#c4854a;color:#2c2416;font-style:normal}
+#notes-textarea{width:100%;min-height:100px;border:1.5px solid #d6cbb8;border-radius:8px;padding:10px 12px;font-size:16px;resize:vertical;outline:none;background:#fff;color:#2c2416;line-height:1.6;display:block;font-family:Georgia,serif}
+.notes-edit-row{display:flex;gap:8px;margin-top:8px}
+.notes-save-btn{background:#2c2416;color:#e8d9b8;border:none;border-radius:6px;padding:9px 18px;font-size:15px;cursor:pointer}
+.notes-cancel-btn{background:none;border:1px solid #d6cbb8;border-radius:6px;padding:9px 18px;font-size:15px;cursor:pointer;color:#8a7a62}
+
+/* Source / delete */
+.source-link{font-size:13px;color:#8a7a62;margin-top:20px;word-break:break-all}
+.source-link a{color:#c4854a}
+.delete-btn{margin-top:24px;background:none;border:1px solid #d6cbb8;border-radius:6px;padding:10px 18px;color:#8a7a62;font-size:14px;cursor:pointer}
+
+/* Loading */
+#loading{display:none;position:fixed;inset:0;background:rgba(44,36,22,0.78);flex-direction:column;align-items:center;justify-content:center;z-index:999;gap:18px}
+#loading.show{display:flex}
+.spinner{width:40px;height:40px;border:3px solid #8a7a62;border-top-color:#c4854a;border-radius:50%;animation:spin 0.9s linear infinite}
+#loading-text{font-size:20px;color:#e8d9b8}
+
+/* Setup */
+#setup-screen{min-height:100vh;background:#2c2416;display:flex;align-items:center;justify-content:center;padding:24px;padding-top:calc(24px + env(safe-area-inset-top,0px))}
+#setup-card{background:#f5f0e8;border-radius:16px;padding:32px;max-width:380px;width:100%;text-align:center}
+#setup-card .icon{font-size:56px;margin-bottom:12px}
+#setup-card h1{font-size:28px;font-weight:bold;margin-bottom:14px}
+#setup-card p{font-size:16px;color:#8a7a62;line-height:1.7;margin-bottom:24px}
+#setup-card a{color:#c4854a}
+#api-input{width:100%;border:1.5px solid #d6cbb8;border-radius:8px;padding:12px 14px;font-size:15px;margin-bottom:14px;outline:none;background:#fff;color:#2c2416;font-family:Georgia,serif}
+#setup-btn{width:100%;background:#c4854a;color:#fff;border:none;border-radius:8px;padding:14px;font-size:18px;cursor:pointer}
+
+/* Metatags in preview/detail body */
+.meta-tag{background:#ede7d8;color:#5a4e3a;padding:4px 12px;border-radius:20px;font-size:13px;display:inline-block;margin:3px 3px 3px 0}
+.meta-tag.accent{background:#c4854a;color:#fff}
+```
+
   </style>
 </head>
 <body>
-<div id="err"></div>
-<div id="root"></div>
+
+<!-- LOADING OVERLAY -->
+
+<div id="loading">
+  <div class="spinner"></div>
+  <div id="loading-text"></div>
+</div>
+
+<!-- SETUP SCREEN -->
+
+<div id="setup-screen">
+  <div id="setup-card">
+    <div class="icon">📖</div>
+    <h1>Jojo's Recipes</h1>
+    <p>Enter your <strong>Anthropic API key</strong> to get started.<br><br>
+      Get one free at <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a> → API Keys → Create key.</p>
+    <input id="api-input" type="password" placeholder="sk-ant-api03-…"/>
+    <button id="setup-btn">Open my recipe book →</button>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+
+<div id="app" style="display:none">
+
+  <!-- Header -->
+
+  <div id="header">
+    <div style="display:flex;align-items:baseline">
+      <div id="logo">Jojo's <span>Recipes</span></div>
+      <span id="recipe-count"></span>
+    </div>
+    <button id="header-btn">+ Add</button>
+  </div>
+
+  <!-- LIST SCREEN -->
+
+  <div id="screen-list" class="screen active">
+    <div id="search-bar">
+      <input id="search-input" placeholder="Search recipes, cuisines…"/>
+      <div id="filter-row">
+        <button class="filter-btn active" data-filter="all">All</button>
+        <button class="filter-btn" data-filter="todo">To try</button>
+        <button class="filter-btn" data-filter="done">✓ Made</button>
+      </div>
+    </div>
+    <div id="list-body"></div>
+  </div>
+
+  <!-- ADD SCREEN -->
+
+  <div id="screen-add" class="screen">
+    <div class="panel">
+      <h2>Add a Recipe</h2>
+      <p class="sub">Paste a link from any public recipe site, or upload a photo.<br>
+        <small style="color:#b0a390">Facebook/Instagram won't work — screenshot and use photo instead.</small></p>
+      <div class="card">
+        <h3>🔗 From a URL</h3>
+        <div class="url-row">
+          <input id="url-input" class="url-input" placeholder="https://…"/>
+          <button id="url-go-btn" class="go-btn">Go</button>
+        </div>
+      </div>
+      <div class="card">
+        <h3>📷 From a Photo</h3>
+        <div class="drop-zone" id="drop-zone">
+          <div class="icon">📸</div>
+          <p>Tap to choose a photo</p>
+          <small>Recipe cards, screenshots, handwritten notes</small>
+        </div>
+        <input id="img-input" type="file" accept="image/*" style="display:none"/>
+      </div>
+      <div id="add-error" style="display:none" class="error-box"></div>
+    </div>
+  </div>
+
+  <!-- PREVIEW SCREEN -->
+
+  <div id="screen-preview" class="screen">
+    <div id="preview-banner">✓ Recipe extracted — review before saving</div>
+    <div class="panel">
+      <div id="preview-content"></div>
+      <div class="confirm-row">
+        <button id="confirm-save-btn" class="confirm-btn">Save to my book</button>
+        <button id="discard-btn" class="discard-btn">Discard</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- DETAIL SCREEN -->
+
+  <div id="screen-detail" class="screen">
+    <div id="detail-header">
+      <div style="display:flex;align-items:flex-start;gap:12px">
+        <div style="flex:1">
+          <div id="detail-title"></div>
+          <div id="detail-pills"></div>
+        </div>
+        <button id="mark-btn">Mark as made</button>
+      </div>
+    </div>
+    <div class="panel">
+      <div id="detail-content"></div>
+      <!-- Photos -->
+      <div class="sec-title">My Photos</div>
+      <div class="photo-row">
+        <div class="photo-slot" id="photo-slot-0"></div>
+        <div class="photo-slot" id="photo-slot-1"></div>
+      </div>
+      <input id="photo-input-0" type="file" accept="image/*" style="display:none"/>
+      <input id="photo-input-1" type="file" accept="image/*" style="display:none"/>
+      <!-- My Notes -->
+      <div class="sec-title">My Notes</div>
+      <div id="notes-view" class="my-notes-view">Tap to add your personal notes…</div>
+      <div id="notes-edit" style="display:none">
+        <textarea id="notes-textarea" placeholder="Your tips, changes, how it turned out…"></textarea>
+        <div class="notes-edit-row">
+          <button id="notes-save-btn" class="notes-save-btn">Save</button>
+          <button id="notes-cancel-btn" class="notes-cancel-btn">Cancel</button>
+        </div>
+      </div>
+      <div id="detail-source"></div>
+      <button id="delete-btn" class="delete-btn">🗑 Remove recipe</button>
+    </div>
+  </div>
+
+</div><!-- /app -->
+
 <script>
-window.onerror = function(msg, src, line, col, err) {
-  var el = document.getElementById('err');
-  el.style.display = 'block';
-  el.textContent = 'ERROR: ' + msg + '\nLine: ' + line + '\n' + (err ? err.stack : '');
-};
+// ── State ────────────────────────────────────────────────────────────────────
+var DB_KEY  = 'jojos-recipes-v1';
+var KEY_KEY = 'jojos-api-key';
+var apiKey  = '';
+var recipes = [];
+var currentView = 'list';
+var selectedId  = null;
+var previewRecipe = null;
+var searchText = '';
+var activeFilter = 'all';
 
-var DB_KEY  = ‘jojos-recipes-v1’;
-var KEY_KEY = ‘jojos-api-key’;
-var C = {
-cream:’#f5f0e8’, dark:’#2c2416’, orange:’#c4854a’,
-tan:’#ede7d8’, border:’#d6cbb8’, muted:’#8a7a62’,
-light:’#e8d9b8’, green:’#4a8a4a’
-};
-
-// ── PWA setup ────────────────────────────────────────────────────────────────
-(function() {
-var manifest = { name:“Jojo’s Recipes”, short_name:“Jojo’s Recipes”, start_url:”./”, display:“standalone”, background_color:”#f5f0e8”, theme_color:”#2c2416”, icons:[{src:“icon.svg”,sizes:“any”,type:“image/svg+xml”,purpose:“any maskable”}] };
-var blob = new Blob([JSON.stringify(manifest)], {type:“application/json”});
-var ml = document.createElement(‘link’); ml.rel = ‘manifest’; ml.href = URL.createObjectURL(blob);
-document.head.appendChild(ml);
-if (‘serviceWorker’ in navigator) navigator.serviceWorker.register(‘sw.js’).catch(function(){});
-})();
-
-// ── Helpers ──────────────────────────────────────────────────────────────────
-var h = React.createElement;
-
-function css(obj) { return obj; }
-
+// ── Persistence ───────────────────────────────────────────────────────────────
 function loadRecipes() {
-try {
-var list = JSON.parse(localStorage.getItem(DB_KEY) || ‘[]’);
-return list.map(function(r) {
-if (!r.photos)          r.photos  = [null, null];
-if (r.done === undefined) r.done  = false;
-if (!r.myNotes)         r.myNotes = ‘’;
-return r;
-});
-} catch(e) { return []; }
+  try {
+    var list = JSON.parse(localStorage.getItem(DB_KEY) || '[]');
+    return list.map(function(r) {
+      if (!r.photos)           r.photos  = [null, null];
+      if (r.done === undefined) r.done   = false;
+      if (!r.myNotes)          r.myNotes = '';
+      return r;
+    });
+  } catch(e) { return []; }
 }
 
-function persistRecipes(list) {
-var sorted = list.slice().sort(function(a,b){ return a.name.localeCompare(b.name); });
-try { localStorage.setItem(DB_KEY, JSON.stringify(sorted)); } catch(e) { alert(‘Storage full — try removing some recipe photos.’); }
-return sorted;
+function saveAll() {
+  var sorted = recipes.slice().sort(function(a,b){ return a.name.localeCompare(b.name); });
+  recipes = sorted;
+  try { localStorage.setItem(DB_KEY, JSON.stringify(sorted)); } catch(e) { alert('Storage full — remove some recipe photos.'); }
 }
 
-// ── API calls ─────────────────────────────────────────────────────────────────
-var SYSTEM = ‘You are a recipe extraction assistant. Return ONLY a valid JSON object, no markdown, no fences. Structure: {“name”:“Recipe Name”,“category”:“Main/Dessert/Breakfast/Snack/Soup/Salad”,“cuisine”:“Italian/French/Asian/etc”,“servings”:4,“prepTime”:“15 min”,“cookTime”:“30 min”,“ingredients”:[“item 1”,“item 2”],“steps”:[“First step”,“Second step”],“notes”:“Optional original tips”}’;
-
-function callClaude(messages, apiKey) {
-return fetch(‘https://api.anthropic.com/v1/messages’, {
-method: ‘POST’,
-headers: {
-‘Content-Type’: ‘application/json’,
-‘x-api-key’: apiKey,
-‘anthropic-version’: ‘2023-06-01’,
-‘anthropic-dangerous-direct-browser-access’: ‘true’
-},
-body: JSON.stringify({ model:‘claude-sonnet-4-20250514’, max_tokens:1500, system:SYSTEM, messages:messages })
-}).then(function(res) { return res.json(); }).then(function(data) {
-if (data.error) throw new Error(data.error.message);
-var texts = (data.content || []).filter(function(b){ return b.type === ‘text’; });
-if (!texts.length) throw new Error(‘Empty response’);
-return texts.map(function(b){ return b.text; }).join(’’);
-});
+function getSelected() {
+  for (var i=0;i<recipes.length;i++) { if (recipes[i].id === selectedId) return recipes[i]; }
+  return null;
 }
 
-function extractFromURL(url, apiKey) {
-return fetch(‘https://r.jina.ai/’ + url, { headers:{‘Accept’:‘text/plain’} })
-.then(function(res) {
-if (!res.ok) throw new Error(‘Cannot fetch page’);
-return res.text();
-}).then(function(pageText) {
-return callClaude([{ role:‘user’, content:‘Extract the recipe from this webpage:\n\n’ + pageText.slice(0, 12000) }], apiKey);
-}).then(function(raw) {
-return JSON.parse(raw.replace(/`json|`/g,’’).trim());
-});
+function updateSelected(patch) {
+  for (var i=0;i<recipes.length;i++) {
+    if (recipes[i].id === selectedId) { Object.assign(recipes[i], patch); break; }
+  }
+  saveAll();
 }
 
-function extractFromImage(b64, mime, apiKey) {
-return callClaude([{ role:‘user’, content:[
-{ type:‘image’, source:{ type:‘base64’, media_type:mime, data:b64 } },
-{ type:‘text’,  text:‘Extract the recipe from this image.’ }
-]}], apiKey).then(function(raw) {
-return JSON.parse(raw.replace(/`json|`/g,’’).trim());
-});
+// ── API ───────────────────────────────────────────────────────────────────────
+var SYSTEM = 'You are a recipe extraction assistant. Return ONLY a valid JSON object, no markdown, no fences. Structure: {"name":"Recipe Name","category":"Main/Dessert/Breakfast/Snack/Soup/Salad","cuisine":"Italian/French/Asian/etc","servings":4,"prepTime":"15 min","cookTime":"30 min","ingredients":["item 1","item 2"],"steps":["First step","Second step"],"notes":"Optional original tips"}';
+
+function callClaude(messages) {
+  return fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
+    body: JSON.stringify({ model:'claude-sonnet-4-20250514', max_tokens:1500, system:SYSTEM, messages:messages })
+  }).then(function(r){ return r.json(); }).then(function(data) {
+    if (data.error) throw new Error(data.error.message);
+    var texts = (data.content||[]).filter(function(b){ return b.type==='text'; });
+    if (!texts.length) throw new Error('Empty response');
+    return texts.map(function(b){ return b.text; }).join('');
+  });
+}
+
+function extractFromURL(url) {
+  return fetch('https://r.jina.ai/' + url, { headers:{'Accept':'text/plain'} })
+    .then(function(r){ if(!r.ok) throw new Error('Cannot fetch'); return r.text(); })
+    .then(function(txt) {
+      return callClaude([{role:'user', content:'Extract the recipe from this webpage:\n\n'+txt.slice(0,12000)}]);
+    }).then(function(raw){ return JSON.parse(raw.replace(/```json|```/g,'').trim()); });
+}
+
+function extractFromImage(b64, mime) {
+  return callClaude([{role:'user', content:[
+    {type:'image', source:{type:'base64', media_type:mime, data:b64}},
+    {type:'text', text:'Extract the recipe from this image.'}
+  ]}]).then(function(raw){ return JSON.parse(raw.replace(/```json|```/g,'').trim()); });
 }
 
 function compressImage(file) {
-return new Promise(function(resolve, reject) {
-var reader = new FileReader();
-reader.onload = function(ev) {
-var img = new Image();
-img.onload = function() {
-var MAX = 800, w = img.width, h = img.height;
-if (w > h) { if (w > MAX) { h = Math.round(h * MAX / w); w = MAX; } }
-else        { if (h > MAX) { w = Math.round(w * MAX / h); h = MAX; } }
-var canvas = document.createElement(‘canvas’);
-canvas.width = w; canvas.height = h;
-canvas.getContext(‘2d’).drawImage(img, 0, 0, w, h);
-resolve(canvas.toDataURL(‘image/jpeg’, 0.72));
-};
-img.onerror = reject;
-img.src = ev.target.result;
-};
-reader.onerror = reject;
-reader.readAsDataURL(file);
-});
+  return new Promise(function(res, rej) {
+    var fr = new FileReader();
+    fr.onload = function(ev) {
+      var img = new Image();
+      img.onload = function() {
+        var MAX=800, w=img.width, h=img.height;
+        if(w>h){if(w>MAX){h=Math.round(h*MAX/w);w=MAX;}}else{if(h>MAX){w=Math.round(w*MAX/h);h=MAX;}}
+        var c=document.createElement('canvas'); c.width=w; c.height=h;
+        c.getContext('2d').drawImage(img,0,0,w,h);
+        res(c.toDataURL('image/jpeg',0.72));
+      };
+      img.onerror=rej; img.src=ev.target.result;
+    };
+    fr.onerror=rej; fr.readAsDataURL(file);
+  });
 }
 
-function readFileAsBase64(file) {
-return new Promise(function(resolve, reject) {
-var fr = new FileReader();
-fr.onload = function() { resolve(fr.result.split(’,’)[1]); };
-fr.onerror = reject;
-fr.readAsDataURL(file);
-});
+// ── Loading ───────────────────────────────────────────────────────────────────
+function showLoading(msg) {
+  document.getElementById('loading').className = 'show';
+  document.getElementById('loading-text').textContent = msg;
+}
+function hideLoading() { document.getElementById('loading').className = ''; }
+
+// ── Navigation ────────────────────────────────────────────────────────────────
+function showScreen(name) {
+  currentView = name;
+  var screens = document.querySelectorAll('.screen');
+  for (var i=0;i<screens.length;i++) screens[i].className = 'screen';
+  document.getElementById('screen-'+name).className = 'screen active';
+
+  var headerBtn = document.getElementById('header-btn');
+  if (name === 'list') {
+    headerBtn.textContent = '+ Add';
+    headerBtn.onclick = function(){ showScreen('add'); };
+    renderList();
+  } else {
+    headerBtn.textContent = '← Back';
+    headerBtn.onclick = function(){ showScreen('list'); previewRecipe = null; };
+  }
+
+  // Count badge
+  var badge = document.getElementById('recipe-count');
+  if (name === 'list' && recipes.length > 0) {
+    badge.textContent = recipes.length;
+    badge.style.display = 'inline';
+  } else {
+    badge.style.display = 'none';
+  }
 }
 
-// ── UI Components (plain React.createElement) ─────────────────────────────────
+// ── Render list ───────────────────────────────────────────────────────────────
+function renderList() {
+  var q = searchText.toLowerCase();
+  var filtered = recipes.filter(function(r) {
+    var mq = r.name.toLowerCase().indexOf(q)>-1 || (r.cuisine||'').toLowerCase().indexOf(q)>-1 || (r.category||'').toLowerCase().indexOf(q)>-1;
+    var mf = activeFilter==='all' || (activeFilter==='done'&&r.done) || (activeFilter==='todo'&&!r.done);
+    return mq && mf;
+  });
 
-function SectionTitle(props) {
-return h(‘div’, { style:{ fontFamily:”‘Cormorant Garamond’,serif”, fontSize:13, fontWeight:600, letterSpacing:‘0.18em’, textTransform:‘uppercase’, color:C.orange, marginTop:22, marginBottom:10, paddingBottom:6, borderBottom:‘1px solid #e8e0d0’ }}, props.label);
-}
+  var doneCount = recipes.filter(function(r){ return r.done; }).length;
+  var filterBtns = document.querySelectorAll('.filter-btn');
+  filterBtns[0].textContent = 'All ('+recipes.length+')';
+  filterBtns[1].textContent = 'To try ('+(recipes.length-doneCount)+')';
+  filterBtns[2].textContent = '✓ Made ('+doneCount+')';
+  for (var fi=0;fi<filterBtns.length;fi++) {
+    filterBtns[fi].className = 'filter-btn' + (filterBtns[fi].dataset.filter===activeFilter?' active':'');
+  }
 
-function Pill(props) {
-return h(‘span’, { style:{ background:props.accent?C.orange:‘rgba(255,255,255,0.13)’, color:props.accent?’#fff’:’#c9bfae’, padding:‘4px 12px’, borderRadius:20, fontSize:13 }}, props.label);
-}
+  // Update count badge
+  var badge = document.getElementById('recipe-count');
+  if (recipes.length > 0) { badge.textContent = recipes.length; badge.style.display='inline'; }
+  else badge.style.display='none';
 
-function MetaTag(props) {
-return h(‘span’, { style:{ background:props.accent?C.orange:C.tan, color:props.accent?’#fff’:’#5a4e3a’, padding:‘4px 12px’, borderRadius:20, fontSize:13 }}, props.label);
-}
+  var body = document.getElementById('list-body');
+  body.innerHTML = '';
 
-// ── PhotoSlot ────────────────────────────────────────────────────────────────
-function PhotoSlot(props) {
-var inputRef = React.useRef(null);
+  if (recipes.length === 0) {
+    body.innerHTML = '<div class="empty-state"><div class="icon">📖</div><h2>Your recipe book is empty</h2><p>Tap <strong>+ Add</strong> to get started.</p></div>';
+    return;
+  }
+  if (filtered.length === 0) {
+    body.innerHTML = '<div class="empty-state"><div class="icon">🔍</div><h2>No matches</h2></div>';
+    return;
+  }
 
-function handlePick(ev) {
-var file = ev.target.files[0]; if (!file) return;
-compressImage(file).then(function(dataUrl) {
-props.onChange(dataUrl);
-}).catch(function() { alert(‘Could not load photo.’); });
-ev.target.value = ‘’;
-}
+  var grouped = {};
+  filtered.forEach(function(r) {
+    var l = (r.name[0]||'#').toUpperCase();
+    if (!grouped[l]) grouped[l] = [];
+    grouped[l].push(r);
+  });
+  var letters = Object.keys(grouped).sort();
 
-if (props.photo) {
-return h(‘div’, { style:{ flex:1, position:‘relative’ }},
-h(‘img’, { src:props.photo, alt:‘Recipe photo’, style:{ width:‘100%’, aspectRatio:‘4/3’, objectFit:‘cover’, borderRadius:10, display:‘block’ }}),
-h(‘button’, { onClick:function(){ props.onChange(null); }, style:{ position:‘absolute’, top:6, right:6, background:‘rgba(44,36,22,0.75)’, color:’#fff’, border:‘none’, borderRadius:‘50%’, width:28, height:28, fontSize:14, cursor:‘pointer’ }}, ‘✕’)
-);
-}
-return h(‘div’, { style:{ flex:1 }},
-h(‘div’, { onClick:function(){ inputRef.current.click(); }, style:{ width:‘100%’, aspectRatio:‘4/3’, background:’#f0ebe0’, border:’2px dashed ’+C.border, borderRadius:10, display:‘flex’, flexDirection:‘column’, alignItems:‘center’, justifyContent:‘center’, cursor:‘pointer’, gap:6 }},
-h(‘span’, { style:{ fontSize:28 }}, ‘📷’),
-h(‘span’, { style:{ fontSize:13, color:C.muted }}, ‘Add photo’)
-),
-h(‘input’, { ref:inputRef, type:‘file’, accept:‘image/*’, style:{ display:‘none’ }, onChange:handlePick })
-);
-}
-
-// ── PersonalNotes ─────────────────────────────────────────────────────────────
-function PersonalNotes(props) {
-var es = React.useState(false);   var editing = es[0]; var setEditing = es[1];
-var ds = React.useState(props.value || ‘’); var draft = ds[0]; var setDraft = ds[1];
-
-React.useEffect(function(){ setDraft(props.value || ‘’); }, [props.value]);
-
-if (editing) {
-return h(‘div’, null,
-h(SectionTitle, { label:‘My Notes’ }),
-h(‘textarea’, { value:draft, onChange:function(ev){ setDraft(ev.target.value); }, placeholder:‘Your tips, changes, how it turned out…’, style:{ width:‘100%’, minHeight:100, border:‘1.5px solid ‘+C.border, borderRadius:8, padding:‘10px 12px’, fontFamily:”‘Crimson Pro’,serif”, fontSize:16, resize:‘vertical’, outline:‘none’, background:’#fff’, color:C.dark, lineHeight:1.6, display:‘block’ }}),
-h(‘div’, { style:{ display:‘flex’, gap:8, marginTop:8 }},
-h(‘button’, { onClick:function(){ props.onChange(draft); setEditing(false); }, style:{ background:C.dark, color:C.light, border:‘none’, borderRadius:6, padding:‘9px 18px’, fontFamily:”‘Crimson Pro’,serif”, fontSize:15, cursor:‘pointer’ }}, ‘Save’),
-h(‘button’, { onClick:function(){ setDraft(props.value||’’); setEditing(false); }, style:{ background:‘none’, border:‘1px solid ‘+C.border, borderRadius:6, padding:‘9px 18px’, fontFamily:”‘Crimson Pro’,serif”, fontSize:15, cursor:‘pointer’, color:C.muted }}, ‘Cancel’)
-)
-);
-}
-return h(‘div’, null,
-h(SectionTitle, { label:‘My Notes’ }),
-h(‘div’, { onClick:function(){ setEditing(true); }, style:{ background:draft?’#faf7f2’:’#f5f0e8’, border:’1.5px dashed ’+(draft?C.orange:C.border), borderRadius:8, padding:‘12px 14px’, fontSize:16, lineHeight:1.7, color:draft?C.dark:C.muted, fontStyle:draft?‘normal’:‘italic’, cursor:‘pointer’, minHeight:60 }},
-draft || ‘Tap to add your personal notes…’
-)
-);
-}
-
-// ── RecipeCard ────────────────────────────────────────────────────────────────
-function RecipeCard(props) {
-var r = props.recipe;
-var parts = [];
-
-if (!props.slim) {
-var tags = [];
-if (r.cuisine)  tags.push(h(MetaTag, { key:‘cu’, accent:true,  label:r.cuisine }));
-if (r.category) tags.push(h(MetaTag, { key:‘ca’, accent:false, label:r.category }));
-if (r.servings) tags.push(h(MetaTag, { key:‘se’, accent:false, label:‘🍽 ‘+r.servings+’ servings’ }));
-if (r.prepTime) tags.push(h(MetaTag, { key:‘pr’, accent:false, label:’⏱ ’+r.prepTime }));
-if (r.cookTime) tags.push(h(MetaTag, { key:‘co’, accent:false, label:’🔥 ’+r.cookTime }));
-parts.push(h(‘div’, { key:‘hdr’, style:{ marginBottom:18 }},
-h(‘div’, { style:{ fontFamily:”‘Cormorant Garamond’,serif”, fontSize:26, fontWeight:600 }}, r.name),
-h(‘div’, { style:{ display:‘flex’, flexWrap:‘wrap’, gap:7, marginTop:8 }}, tags)
-));
-}
-
-if (r.ingredients && r.ingredients.length) {
-parts.push(h(SectionTitle, { key:‘it’, label:‘Ingredients’ }));
-r.ingredients.forEach(function(ing, i) {
-parts.push(h(‘div’, { key:‘i’+i, style:{ display:‘flex’, gap:10, padding:‘7px 0’, fontSize:17, borderBottom:‘1px solid #f0ebe0’ }},
-h(‘span’, { style:{ color:C.orange, fontSize:20, lineHeight:1.1, flexShrink:0 }}, ‘·’),
-h(‘span’, null, ing)
-));
-});
-}
-
-if (r.steps && r.steps.length) {
-parts.push(h(SectionTitle, { key:‘st’, label:‘Preparation’ }));
-r.steps.forEach(function(step, i) {
-parts.push(h(‘div’, { key:‘s’+i, style:{ display:‘flex’, gap:14, padding:‘9px 0’, fontSize:17, borderBottom:‘1px solid #f0ebe0’, alignItems:‘flex-start’ }},
-h(‘span’, { style:{ fontFamily:”‘Cormorant Garamond’,serif”, fontSize:20, color:C.orange, fontWeight:600, minWidth:20, flexShrink:0 }}, i+1),
-h(‘span’, { style:{ lineHeight:1.7 }}, step.replace(/^Step\s*\d+[:.]\s*/i,’’))
-));
-});
-}
-
-if (r.notes) {
-parts.push(h(SectionTitle, { key:‘nt’, label:‘Recipe Notes’ }));
-parts.push(h(‘div’, { key:‘nb’, style:{ background:’#faf7f2’, borderLeft:‘3px solid ‘+C.orange, padding:‘14px 16px’, borderRadius:‘0 6px 6px 0’, fontSize:16, lineHeight:1.6, color:’#5a4e3a’, fontStyle:‘italic’ }}, r.notes));
-}
-
-return h(‘div’, null, parts);
-}
-
-// ── Main App ──────────────────────────────────────────────────────────────────
-function App() {
-var rs1  = React.useState(localStorage.getItem(KEY_KEY) || ‘’); var apiKey   = rs1[0]; var setApiKey   = rs1[1];
-var rs2  = React.useState(!!localStorage.getItem(KEY_KEY));      var ready    = rs2[0]; var setReady    = rs2[1];
-var rs3  = React.useState(’’);                                    var keyInput = rs3[0]; var setKeyInput = rs3[1];
-var rs4  = React.useState(loadRecipes);                          var recipes  = rs4[0]; var setRecipes  = rs4[1];
-var rs5  = React.useState(‘list’);                               var view     = rs5[0]; var setView     = rs5[1];
-var rs6  = React.useState(null);                                 var selected = rs6[0]; var setSelected = rs6[1];
-var rs7  = React.useState(’’);                                   var search   = rs7[0]; var setSearch   = rs7[1];
-var rs8  = React.useState(‘all’);                                var filter   = rs8[0]; var setFilter   = rs8[1];
-var rs9  = React.useState(’’);                                   var url      = rs9[0]; var setUrl      = rs9[1];
-var rs10 = React.useState(false);                                var loading  = rs10[0]; var setLoading = rs10[1];
-var rs11 = React.useState(’’);                                   var loadMsg  = rs11[0]; var setLoadMsg = rs11[1];
-var rs12 = React.useState(’’);                                   var error    = rs12[0]; var setError   = rs12[1];
-var rs13 = React.useState(null);                                 var preview  = rs13[0]; var setPreview = rs13[1];
-var fileRef = React.useRef(null);
-
-function persist(list) { var s = persistRecipes(list); setRecipes(s); return s; }
-
-function updateSelected(patch) {
-var updated = Object.assign({}, selected, patch);
-setSelected(updated);
-persist(recipes.map(function(r){ return r.id === updated.id ? updated : r; }));
-}
-
-function saveKey() {
-var k = keyInput.trim(); if (!k) return;
-localStorage.setItem(KEY_KEY, k); setApiKey(k); setReady(true);
-}
-
-function handleURL() {
-if (!url.trim()) return;
-setLoading(true); setError(’’); setLoadMsg(‘Fetching recipe…’);
-extractFromURL(url.trim(), apiKey).then(function(r) {
-r.id = Date.now()+’’; r.source = url.trim(); r.addedAt = new Date().toISOString();
-r.done = false; r.myNotes = ‘’; r.photos = [null, null];
-setPreview(r); setView(‘preview’);
-setLoading(false); setLoadMsg(’’);
-}).catch(function() {
-setError(“Couldn’t extract from that link. Use a public recipe page. Facebook/Instagram won’t work — screenshot and use the photo option instead.”);
-setLoading(false); setLoadMsg(’’);
-});
-}
-
-function handleImageFile(ev) {
-var file = ev.target.files[0]; if (!file) return;
-setLoading(true); setError(’’); setLoadMsg(‘Reading recipe from photo…’);
-var mime = file.type;
-readFileAsBase64(file).then(function(b64) {
-return extractFromImage(b64, mime, apiKey);
-}).then(function(r) {
-r.id = Date.now()+’’; r.source = ‘Photo’; r.addedAt = new Date().toISOString();
-r.done = false; r.myNotes = ‘’; r.photos = [null, null];
-setPreview(r); setView(‘preview’);
-setLoading(false); setLoadMsg(’’);
-}).catch(function() {
-setError(“Couldn’t read the recipe from that photo.”);
-setLoading(false); setLoadMsg(’’);
-});
-ev.target.value = ‘’;
-}
-
-function confirmSave() {
-persist(recipes.concat([preview]));
-setSelected(preview); setPreview(null); setUrl(’’); setView(‘detail’);
-}
-
-function deleteRecipe(id) {
-persist(recipes.filter(function(r){ return r.id !== id; }));
-setView(‘list’); setSelected(null);
-}
-
-function goBack() { setView(‘list’); setPreview(null); setError(’’); }
-
-function toggleDone(id, ev) {
-if (ev) ev.stopPropagation();
-var saved = persist(recipes.map(function(r){ return r.id === id ? Object.assign({}, r, { done:!r.done }) : r; }));
-if (selected && selected.id === id) {
-var found = null; for (var i=0;i<saved.length;i++) { if(saved[i].id===id){ found=saved[i]; break; } }
-if (found) setSelected(found);
-}
-}
-
-var filtered = recipes.filter(function(r) {
-var q = search.toLowerCase();
-var mq = r.name.toLowerCase().indexOf(q) > -1 || (r.cuisine||’’).toLowerCase().indexOf(q) > -1 || (r.category||’’).toLowerCase().indexOf(q) > -1;
-var mf = filter===‘all’ || (filter===‘done’&&r.done) || (filter===‘todo’&&!r.done);
-return mq && mf;
-});
-var grouped = {};
-filtered.forEach(function(r) { var l=(r.name[0]||’#’).toUpperCase(); if(!grouped[l]) grouped[l]=[]; grouped[l].push(r); });
-var letters = Object.keys(grouped).sort();
-var doneCount = recipes.filter(function(r){ return r.done; }).length;
-
-var headerStyle = { background:C.dark, paddingTop:‘calc(16px + env(safe-area-inset-top,0px))’, paddingBottom:16, paddingLeft:24, paddingRight:24, display:‘flex’, alignItems:‘center’, justifyContent:‘space-between’, position:‘sticky’, top:0, zIndex:50 };
-
-// ── SETUP SCREEN ────────────────────────────────────────────────────────────
-if (!ready) {
-return h(‘div’, { style:{ minHeight:‘100vh’, background:C.dark, display:‘flex’, alignItems:‘center’, justifyContent:‘center’, padding:24, paddingTop:‘calc(24px + env(safe-area-inset-top,0px))’ }},
-h(‘div’, { style:{ background:C.cream, borderRadius:16, padding:32, maxWidth:380, width:‘100%’, textAlign:‘center’ }},
-h(‘div’, { style:{ fontSize:56, marginBottom:12 }}, ‘📖’),
-h(‘div’, { style:{ fontFamily:”‘Cormorant Garamond’,serif”, fontSize:30, fontWeight:600, marginBottom:14 }}, “Jojo’s Recipes”),
-h(‘div’, { style:{ fontSize:16, color:C.muted, lineHeight:1.7, marginBottom:24 }},
-‘Enter your ‘, h(‘strong’, null, ‘Anthropic API key’), ’ to get started.’,
-h(‘br’), h(‘br’),
-‘Get one free at ‘,
-h(‘a’, { href:‘https://console.anthropic.com’, target:’_blank’, style:{ color:C.orange }}, ‘console.anthropic.com’),
-’ → API Keys → Create key.’
-),
-h(‘input’, { type:‘password’, placeholder:‘sk-ant-api03-…’, value:keyInput, onChange:function(ev){ setKeyInput(ev.target.value); }, onKeyDown:function(ev){ if(ev.key===‘Enter’) saveKey(); }, style:{ width:‘100%’, border:‘1.5px solid ‘+C.border, borderRadius:8, padding:‘12px 14px’, fontFamily:”‘Crimson Pro’,serif”, fontSize:15, marginBottom:14, outline:‘none’, background:’#fff’, color:C.dark }}),
-h(‘button’, { onClick:saveKey, disabled:!keyInput.trim(), style:{ width:‘100%’, background:C.orange, color:’#fff’, border:‘none’, borderRadius:8, padding:14, fontFamily:”‘Cormorant Garamond’,serif”, fontSize:18, cursor:‘pointer’ }}, ‘Open my recipe book →’)
-)
-);
-}
-
-// ── MAIN APP ────────────────────────────────────────────────────────────────
-var children = [];
-
-// Loading overlay
-if (loading) {
-children.push(h(‘div’, { key:‘ov’, style:{ position:‘fixed’, inset:0, background:‘rgba(44,36,22,0.78)’, display:‘flex’, flexDirection:‘column’, alignItems:‘center’, justifyContent:‘center’, zIndex:999, gap:18 }},
-h(‘div’, { style:{ width:40, height:40, border:‘3px solid #8a7a62’, borderTopColor:C.orange, borderRadius:‘50%’, animation:‘spin 0.9s linear infinite’ }}),
-h(‘div’, { style:{ fontFamily:”‘Cormorant Garamond’,serif”, fontSize:20, color:C.light }}, loadMsg)
-));
-}
-
-// Header
-children.push(h(‘div’, { key:‘hd’, style:headerStyle },
-h(‘div’, { style:{ display:‘flex’, alignItems:‘baseline’ }},
-h(‘span’, { style:{ fontFamily:”‘Cormorant Garamond’,serif”, fontSize:24, fontWeight:600, color:C.light }},
-“Jojo’s “, h(‘span’, { style:{ color:C.orange }}, ‘Recipes’)
-),
-view===‘list’ && recipes.length > 0
-? h(‘span’, { style:{ background:C.orange, color:’#fff’, fontSize:11, padding:‘2px 8px’, borderRadius:10, marginLeft:8 }}, recipes.length)
-: null
-),
-view === ‘list’
-? h(‘button’, { style:{ background:C.orange, color:’#fff’, border:‘none’, borderRadius:6, padding:‘8px 16px’, fontFamily:”‘Crimson Pro’,serif”, fontSize:15, cursor:‘pointer’ }, onClick:function(){ setView(‘add’); setError(’’); setUrl(’’); }}, ‘+ Add’)
-: h(‘button’, { style:{ background:‘none’, border:‘none’, color:C.light, fontFamily:”‘Crimson Pro’,serif”, fontSize:16, cursor:‘pointer’, padding:‘8px 0’ }, onClick:goBack }, ‘← Back’)
-));
-
-// ── LIST ───────────────────────────────────────────────────────────────────
-if (view === ‘list’) {
-var listItems = [];
-listItems.push(h(‘div’, { key:‘sf’, style:{ padding:‘12px 24px 0’, background:C.tan, borderBottom:‘1px solid ‘+C.border }},
-h(‘input’, { style:{ width:‘100%’, background:’#fff’, border:‘1.5px solid ‘+C.border, borderRadius:8, padding:‘10px 14px’, fontFamily:”‘Crimson Pro’,serif”, fontSize:16, outline:‘none’, marginBottom:10 }, placeholder:‘Search recipes, cuisines…’, value:search, onChange:function(ev){ setSearch(ev.target.value); }}),
-h(‘div’, { style:{ display:‘flex’, gap:6, paddingBottom:12 }},
-[‘all’,‘todo’,‘done’].map(function(f) {
-var label = f===‘all’?‘All (’+recipes.length+’)’:f===‘done’?‘✓ Made (’+doneCount+’)’:‘To try (’+(recipes.length-doneCount)+’)’;
-return h(‘button’, { key:f, onClick:function(){ setFilter(f); }, style:{ flex:1, background:filter===f?C.dark:‘transparent’, color:filter===f?C.light:C.muted, border:’1px solid ’+(filter===f?C.dark:C.border), borderRadius:6, padding:‘6px 4px’, fontFamily:”‘Crimson Pro’,serif”, fontSize:13, cursor:‘pointer’ }}, label);
-})
-)
-));
-
-```
-if (recipes.length === 0) {
-  listItems.push(h('div', { key:'em', style:{ textAlign:'center', padding:'60px 24px', color:C.muted }},
-    h('div', { style:{ fontSize:52, marginBottom:16 }}, '📖'),
-    h('div', { style:{ fontFamily:"'Cormorant Garamond',serif", fontSize:22, color:C.dark, marginBottom:8 }}, 'Your recipe book is empty'),
-    h('div', { style:{ fontSize:16, lineHeight:1.6 }}, 'Tap ', h('strong', null, '+ Add'), ' to get started.')
-  ));
-} else if (filtered.length === 0) {
-  listItems.push(h('div', { key:'nm', style:{ textAlign:'center', padding:'60px 24px', color:C.muted }},
-    h('div', { style:{ fontSize:36, marginBottom:12 }}, '🔍'),
-    h('div', { style:{ fontFamily:"'Cormorant Garamond',serif", fontSize:22, color:C.dark }}, 'No matches')
-  ));
-} else {
   letters.forEach(function(l) {
-    listItems.push(h('div', { key:'lh'+l, style:{ fontFamily:"'Cormorant Garamond',serif", fontSize:12, fontWeight:600, letterSpacing:'0.2em', textTransform:'uppercase', color:C.orange, padding:'14px 24px 4px' }}, l));
+    var lh = document.createElement('div');
+    lh.className = 'letter-head'; lh.textContent = l;
+    body.appendChild(lh);
+
     grouped[l].forEach(function(r) {
-      listItems.push(h('div', { key:r.id, style:{ display:'flex', alignItems:'center', padding:'11px 16px 11px 20px', borderBottom:'1px solid #e8e0d0', gap:10 }},
-        h('button', { onClick:function(ev){ toggleDone(r.id, ev); }, style:{ width:30, height:30, borderRadius:'50%', border:'2px solid '+(r.done?C.green:C.border), background:r.done?C.green:'transparent', color:'#fff', fontSize:14, cursor:'pointer', flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center' }}, r.done?'✓':''),
-        h('div', { style:{ flex:1, cursor:'pointer', minWidth:0 }, onClick:function(){ setSelected(r); setView('detail'); }},
-          h('div', { style:{ fontFamily:"'Cormorant Garamond',serif", fontSize:19, fontWeight:500, opacity:r.done?0.5:1, textDecoration:r.done?'line-through':'none', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}, r.name),
-          (r.cuisine||r.category) ? h('div', { style:{ fontSize:13, color:C.muted, marginTop:1 }}, [r.cuisine,r.category].filter(Boolean).join(' · ')) : null
-        ),
-        h('div', { style:{ color:C.orange, fontSize:22, cursor:'pointer', flexShrink:0 }, onClick:function(){ setSelected(r); setView('detail'); }}, '›')
-      ));
+      var row = document.createElement('div');
+      row.className = 'recipe-row';
+
+      var doneBtn = document.createElement('button');
+      doneBtn.className = 'done-btn' + (r.done?' done':'');
+      doneBtn.textContent = r.done ? '✓' : '';
+      doneBtn.onclick = function(ev) {
+        ev.stopPropagation();
+        r.done = !r.done; saveAll(); renderList();
+      };
+
+      var info = document.createElement('div');
+      info.className = 'row-info';
+      info.onclick = function(){ selectedId = r.id; showScreen('detail'); renderDetail(); };
+
+      var name = document.createElement('div');
+      name.className = 'row-name' + (r.done?' done':'');
+      name.textContent = r.name;
+
+      var meta = document.createElement('div');
+      meta.className = 'row-meta';
+      meta.textContent = [r.cuisine, r.category].filter(Boolean).join(' · ');
+
+      info.appendChild(name);
+      if (r.cuisine || r.category) info.appendChild(meta);
+
+      var arrow = document.createElement('div');
+      arrow.className = 'row-arrow'; arrow.textContent = '›';
+      arrow.onclick = function(){ selectedId = r.id; showScreen('detail'); renderDetail(); };
+
+      row.appendChild(doneBtn); row.appendChild(info); row.appendChild(arrow);
+      body.appendChild(row);
     });
   });
 }
-children.push(h('div', { key:'lv' }, listItems));
-```
 
+// ── Render recipe content ─────────────────────────────────────────────────────
+function buildRecipeHTML(r) {
+  var html = '';
+  if (r.ingredients && r.ingredients.length) {
+    html += '<div class="sec-title">Ingredients</div>';
+    r.ingredients.forEach(function(ing) {
+      html += '<div class="ing-row"><span class="ing-dot">·</span><span>'+escHtml(ing)+'</span></div>';
+    });
+  }
+  if (r.steps && r.steps.length) {
+    html += '<div class="sec-title">Preparation</div>';
+    r.steps.forEach(function(step, i) {
+      var text = step.replace(/^Step\s*\d+[:.]\s*/i,'');
+      html += '<div class="step-row"><span class="step-num">'+(i+1)+'</span><span class="step-text">'+escHtml(text)+'</span></div>';
+    });
+  }
+  if (r.notes) {
+    html += '<div class="sec-title">Recipe Notes</div><div class="notes-box">'+escHtml(r.notes)+'</div>';
+  }
+  return html;
 }
 
-// ── ADD ────────────────────────────────────────────────────────────────────
-if (view === ‘add’) {
-children.push(h(‘div’, { key:‘av’, style:{ padding:24, maxWidth:600, margin:‘0 auto’ }},
-h(‘div’, { style:{ fontFamily:”‘Cormorant Garamond’,serif”, fontSize:26, fontWeight:600, marginBottom:6 }}, ‘Add a Recipe’),
-h(‘div’, { style:{ fontSize:15, color:C.muted, marginBottom:24, lineHeight:1.5 }},
-‘Paste a link from any public recipe site, or upload a photo.’,
-h(‘br’),
-h(‘span’, { style:{ fontSize:13, color:’#b0a390’ }}, ‘Facebook/Instagram links won't work — screenshot and use photo instead.’)
-),
-h(‘div’, { style:{ background:’#fff’, border:‘1.5px solid ‘+C.border, borderRadius:10, padding:20, marginBottom:14 }},
-h(‘div’, { style:{ fontFamily:”‘Cormorant Garamond’,serif”, fontSize:17, fontWeight:600, marginBottom:12 }}, ‘🔗 From a URL’),
-h(‘div’, { style:{ display:‘flex’, gap:8 }},
-h(‘input’, { style:{ flex:1, border:‘1.5px solid ‘+C.border, borderRadius:6, padding:‘10px 12px’, fontFamily:”‘Crimson Pro’,serif”, fontSize:15, outline:‘none’, color:C.dark, minWidth:0 }, placeholder:‘https://…’, value:url, onChange:function(ev){ setUrl(ev.target.value); }, onKeyDown:function(ev){ if(ev.key===‘Enter’) handleURL(); }}),
-h(‘button’, { style:{ background:C.dark, color:C.light, border:‘none’, borderRadius:6, padding:‘10px 18px’, fontFamily:”‘Crimson Pro’,serif”, fontSize:15, cursor:‘pointer’, opacity:(loading||!url.trim())?0.5:1, flexShrink:0 }, onClick:handleURL, disabled:loading||!url.trim() }, ‘Go’)
-)
-),
-h(‘div’, { style:{ background:’#fff’, border:‘1.5px solid ‘+C.border, borderRadius:10, padding:20, marginBottom:14 }},
-h(‘div’, { style:{ fontFamily:”‘Cormorant Garamond’,serif”, fontSize:17, fontWeight:600, marginBottom:12 }}, ‘📷 From a Photo’),
-h(‘div’, { style:{ border:‘2px dashed ‘+C.border, borderRadius:8, padding:24, textAlign:‘center’, cursor:‘pointer’ }, onClick:function(){ fileRef.current.click(); }},
-h(‘div’, { style:{ fontSize:32, marginBottom:6 }}, ‘📸’),
-h(‘div’, { style:{ fontSize:15, color:C.muted }}, ‘Tap to choose a photo’),
-h(‘div’, { style:{ fontSize:13, color:’#b0a390’, marginTop:4 }}, ‘Recipe cards, screenshots, handwritten notes’)
-),
-h(‘input’, { ref:fileRef, type:‘file’, accept:‘image/*’, style:{ display:‘none’ }, onChange:handleImageFile })
-),
-error ? h(‘div’, { style:{ background:’#fdf0e8’, border:‘1px solid #e8b48a’, borderRadius:6, padding:‘12px 14px’, fontSize:14, color:’#8a3a10’ }}, ’⚠️ ’ + error) : null
-));
+function buildMetaTags(r, pillClass) {
+  var tags = '';
+  var pc = pillClass || 'meta-tag';
+  if (r.cuisine)  tags += '<span class="'+pc+' accent">'+escHtml(r.cuisine)+'</span>';
+  if (r.category) tags += '<span class="'+pc+'">'+escHtml(r.category)+'</span>';
+  if (r.servings) tags += '<span class="'+pc+'">🍽 '+r.servings+' servings</span>';
+  if (r.prepTime) tags += '<span class="'+pc+'">⏱ '+escHtml(r.prepTime)+'</span>';
+  if (r.cookTime) tags += '<span class="'+pc+'">🔥 '+escHtml(r.cookTime)+'</span>';
+  return tags;
 }
 
-// ── PREVIEW ────────────────────────────────────────────────────────────────
-if (view === ‘preview’ && preview) {
-children.push(h(‘div’, { key:‘pv’ },
-h(‘div’, { style:{ background:C.orange, color:’#fff’, padding:‘10px 20px’, fontSize:13, letterSpacing:‘0.06em’, textTransform:‘uppercase’ }}, ‘✓ Recipe extracted — review before saving’),
-h(‘div’, { style:{ padding:24, maxWidth:600, margin:‘0 auto’ }},
-h(RecipeCard, { recipe:preview }),
-h(‘div’, { style:{ display:‘flex’, gap:10, marginTop:20 }},
-h(‘button’, { style:{ flex:1, background:C.dark, color:C.light, border:‘none’, borderRadius:8, padding:13, fontFamily:”‘Cormorant Garamond’,serif”, fontSize:17, cursor:‘pointer’ }, onClick:confirmSave }, ‘Save to my book’),
-h(‘button’, { style:{ flex:1, background:‘none’, color:C.muted, border:’1.5px solid ’+C.border, borderRadius:8, padding:13, fontFamily:”‘Cormorant Garamond’,serif”, fontSize:17, cursor:‘pointer’ }, onClick:function(){ setView(‘add’); setPreview(null); }}, ‘Discard’)
-)
-)
-));
+function escHtml(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-// ── DETAIL ─────────────────────────────────────────────────────────────────
-if (view === ‘detail’ && selected) {
-var photos = selected.photos || [null, null];
-var detailPills = [];
-if (selected.cuisine)  detailPills.push(h(Pill, { key:‘cu’, accent:true,  label:selected.cuisine }));
-if (selected.category) detailPills.push(h(Pill, { key:‘ca’, accent:false, label:selected.category }));
-if (selected.servings) detailPills.push(h(Pill, { key:‘se’, accent:false, label:‘🍽 ‘+selected.servings+’ servings’ }));
-if (selected.prepTime) detailPills.push(h(Pill, { key:‘pr’, accent:false, label:’⏱ Prep ’+selected.prepTime }));
-if (selected.cookTime) detailPills.push(h(Pill, { key:‘co’, accent:false, label:’🔥 Cook ’+selected.cookTime }));
-
-```
-children.push(h('div', { key:'dv' },
-  h('div', { style:{ background:C.dark, padding:'20px 24px' }},
-    h('div', { style:{ display:'flex', alignItems:'flex-start', gap:12 }},
-      h('div', { style:{ flex:1 }},
-        h('div', { style:{ fontFamily:"'Cormorant Garamond',serif", fontSize:26, color:C.light, fontWeight:600 }}, selected.name),
-        h('div', { style:{ display:'flex', flexWrap:'wrap', gap:7, marginTop:10 }}, detailPills)
-      ),
-      h('button', { onClick:function(ev){ toggleDone(selected.id, ev); }, style:{ flexShrink:0, background:selected.done?C.green:'transparent', border:'2px solid '+(selected.done?C.green:'rgba(255,255,255,0.35)'), borderRadius:8, padding:'6px 12px', color:selected.done?'#fff':'rgba(255,255,255,0.65)', fontFamily:"'Crimson Pro',serif", fontSize:14, cursor:'pointer', marginTop:4, whiteSpace:'nowrap' }},
-        selected.done ? '✓ Made it' : 'Mark as made'
-      )
-    )
-  ),
-  h('div', { style:{ padding:'22px 24px 60px' }},
-    h(RecipeCard, { recipe:selected, slim:true }),
-    h(SectionTitle, { label:'My Photos' }),
-    h('div', { style:{ display:'flex', gap:12, marginBottom:4 }},
-      h(PhotoSlot, { photo:photos[0], onChange:function(d){ updateSelected({ photos:[d, photos[1]] }); }}),
-      h(PhotoSlot, { photo:photos[1], onChange:function(d){ updateSelected({ photos:[photos[0], d] }); }})
-    ),
-    h(PersonalNotes, { value:selected.myNotes || '', onChange:function(v){ updateSelected({ myNotes:v }); }}),
-    selected.source && selected.source !== 'Photo'
-      ? h('div', { style:{ fontSize:13, color:C.muted, marginTop:20, wordBreak:'break-all' }}, 'Source: ', h('a', { href:selected.source, target:'_blank', style:{ color:C.orange }}, selected.source))
-      : null,
-    h('button', { style:{ marginTop:24, background:'none', border:'1px solid '+C.border, borderRadius:6, padding:'10px 18px', color:C.muted, fontFamily:"'Crimson Pro',serif", fontSize:14, cursor:'pointer' }, onClick:function(){ deleteRecipe(selected.id); }}, '🗑 Remove recipe')
-  )
-));
-```
-
+// ── Preview ───────────────────────────────────────────────────────────────────
+function renderPreview() {
+  var r = previewRecipe;
+  var html = '<div style="font-size:24px;font-weight:bold;margin-bottom:8px">'+escHtml(r.name)+'</div>';
+  html += '<div style="margin-bottom:16px">'+buildMetaTags(r)+'</div>';
+  html += buildRecipeHTML(r);
+  document.getElementById('preview-content').innerHTML = html;
 }
 
-return h(‘div’, { style:{ minHeight:‘100vh’, background:C.cream, paddingBottom:‘calc(40px + env(safe-area-inset-bottom,0px))’ }}, children);
+// ── Detail ────────────────────────────────────────────────────────────────────
+function renderDetail() {
+  var r = getSelected(); if (!r) return;
+
+  document.getElementById('detail-title').textContent = r.name;
+  document.getElementById('detail-pills').innerHTML = buildMetaTags(r, 'pill');
+
+  var markBtn = document.getElementById('mark-btn');
+  markBtn.textContent = r.done ? '✓ Made it' : 'Mark as made';
+  markBtn.className = r.done ? 'done' : '';
+  markBtn.onclick = function() {
+    r.done = !r.done; saveAll();
+    markBtn.textContent = r.done ? '✓ Made it' : 'Mark as made';
+    markBtn.className = r.done ? 'done' : '';
+    renderList();
+  };
+
+  document.getElementById('detail-content').innerHTML = buildRecipeHTML(r);
+
+  // Source
+  var srcEl = document.getElementById('detail-source');
+  if (r.source && r.source !== 'Photo') {
+    srcEl.innerHTML = '<div class="source-link">Source: <a href="'+escHtml(r.source)+'" target="_blank">'+escHtml(r.source)+'</a></div>';
+  } else { srcEl.innerHTML = ''; }
+
+  // Photos
+  renderPhotoSlot(0, r);
+  renderPhotoSlot(1, r);
+
+  // Notes
+  renderNotesView(r);
+
+  // Delete
+  document.getElementById('delete-btn').onclick = function() {
+    if (!confirm('Remove "'+r.name+'" from your book?')) return;
+    recipes = recipes.filter(function(x){ return x.id !== r.id; });
+    saveAll(); showScreen('list');
+  };
 }
 
-ReactDOM.createRoot(document.getElementById(‘root’)).render(React.createElement(App));
+function renderPhotoSlot(idx, r) {
+  var slot = document.getElementById('photo-slot-'+idx);
+  var photos = r.photos || [null, null];
+  slot.innerHTML = '';
+  if (photos[idx]) {
+    var img = document.createElement('img');
+    img.src = photos[idx]; img.alt = 'Recipe photo';
+    var removeBtn = document.createElement('button');
+    removeBtn.className = 'photo-remove'; removeBtn.textContent = '✕';
+    removeBtn.onclick = function() {
+      var p = r.photos.slice(); p[idx]=null;
+      updateSelected({photos:p}); renderPhotoSlot(idx, getSelected());
+    };
+    slot.appendChild(img); slot.appendChild(removeBtn);
+  } else {
+    var ph = document.createElement('div');
+    ph.className = 'photo-placeholder';
+    ph.innerHTML = '<span>📷</span><p>Add photo</p>';
+    ph.onclick = function(){ document.getElementById('photo-input-'+idx).click(); };
+    slot.appendChild(ph);
+  }
+}
+
+function renderNotesView(r) {
+  var view = document.getElementById('notes-view');
+  var edit = document.getElementById('notes-edit');
+  edit.style.display = 'none';
+  view.style.display = 'block';
+  if (r.myNotes) {
+    view.textContent = r.myNotes;
+    view.className = 'my-notes-view has-notes';
+  } else {
+    view.textContent = 'Tap to add your personal notes…';
+    view.className = 'my-notes-view';
+  }
+  view.onclick = function() {
+    view.style.display = 'none'; edit.style.display = 'block';
+    document.getElementById('notes-textarea').value = r.myNotes || '';
+  };
+  document.getElementById('notes-save-btn').onclick = function() {
+    var val = document.getElementById('notes-textarea').value;
+    updateSelected({myNotes:val});
+    renderNotesView(getSelected());
+  };
+  document.getElementById('notes-cancel-btn').onclick = function() {
+    edit.style.display='none'; view.style.display='block';
+  };
+}
+
+// ── Setup + event wiring ──────────────────────────────────────────────────────
+function init() {
+  var storedKey = localStorage.getItem(KEY_KEY);
+  if (storedKey) {
+    apiKey = storedKey;
+    recipes = loadRecipes();
+    document.getElementById('setup-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    showScreen('list');
+  }
+
+  // Setup form
+  document.getElementById('setup-btn').onclick = function() {
+    var k = document.getElementById('api-input').value.trim();
+    if (!k) return;
+    localStorage.setItem(KEY_KEY, k); apiKey = k;
+    recipes = loadRecipes();
+    document.getElementById('setup-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    showScreen('list');
+  };
+  document.getElementById('api-input').onkeydown = function(ev){ if(ev.key==='Enter') document.getElementById('setup-btn').click(); };
+
+  // Search
+  document.getElementById('search-input').oninput = function() {
+    searchText = this.value; renderList();
+  };
+
+  // Filter buttons
+  var filterBtns = document.querySelectorAll('.filter-btn');
+  for (var fi=0;fi<filterBtns.length;fi++) {
+    filterBtns[fi].onclick = function() {
+      activeFilter = this.dataset.filter; renderList();
+    };
+  }
+
+  // URL extraction
+  document.getElementById('url-go-btn').onclick = doURLExtract;
+  document.getElementById('url-input').onkeydown = function(ev){ if(ev.key==='Enter') doURLExtract(); };
+
+  // Image extraction
+  document.getElementById('drop-zone').onclick = function(){ document.getElementById('img-input').click(); };
+  document.getElementById('img-input').onchange = function() {
+    var file = this.files[0]; if (!file) return;
+    var mime = file.type;
+    showLoading('Reading recipe from photo…');
+    document.getElementById('add-error').style.display = 'none';
+    compressImage(file).then(function(dataUrl) {
+      var b64 = dataUrl.split(',')[1];
+      return extractFromImage(b64, mime);
+    }).then(function(r) {
+      r.id = Date.now()+''; r.source='Photo'; r.addedAt=new Date().toISOString();
+      r.done=false; r.myNotes=''; r.photos=[null,null];
+      previewRecipe = r;
+      hideLoading(); renderPreview(); showScreen('preview');
+    }).catch(function() {
+      hideLoading();
+      var err = document.getElementById('add-error');
+      err.textContent = "⚠️ Couldn't read the recipe from that photo.";
+      err.style.display = 'block';
+    });
+    this.value = '';
+  };
+
+  // Preview actions
+  document.getElementById('confirm-save-btn').onclick = function() {
+    recipes.push(previewRecipe); saveAll();
+    selectedId = previewRecipe.id; previewRecipe = null;
+    showScreen('detail'); renderDetail();
+  };
+  document.getElementById('discard-btn').onclick = function() {
+    previewRecipe = null; showScreen('add');
+  };
+
+  // Photo inputs for detail
+  [0,1].forEach(function(idx) {
+    document.getElementById('photo-input-'+idx).onchange = function() {
+      var file = this.files[0]; if (!file) return;
+      compressImage(file).then(function(dataUrl) {
+        var r = getSelected(); if (!r) return;
+        var p = (r.photos||[null,null]).slice(); p[idx]=dataUrl;
+        updateSelected({photos:p}); renderPhotoSlot(idx, getSelected());
+      }).catch(function(){ alert('Could not load photo.'); });
+      this.value='';
+    };
+  });
+
+  // PWA manifest
+  var manifest = {name:"Jojo's Recipes",short_name:"Jojo's Recipes",start_url:"./",display:"standalone",background_color:"#f5f0e8",theme_color:"#2c2416",icons:[{src:"icon.svg",sizes:"any",type:"image/svg+xml",purpose:"any maskable"}]};
+  var blob = new Blob([JSON.stringify(manifest)],{type:"application/json"});
+  var ml = document.createElement('link'); ml.rel='manifest'; ml.href=URL.createObjectURL(blob);
+  document.head.appendChild(ml);
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function(){});
+}
+
+function doURLExtract() {
+  var url = document.getElementById('url-input').value.trim();
+  if (!url) return;
+  showLoading('Fetching recipe…');
+  document.getElementById('add-error').style.display = 'none';
+  extractFromURL(url).then(function(r) {
+    r.id = Date.now()+''; r.source=url; r.addedAt=new Date().toISOString();
+    r.done=false; r.myNotes=''; r.photos=[null,null];
+    previewRecipe = r;
+    hideLoading(); renderPreview(); showScreen('preview');
+  }).catch(function() {
+    hideLoading();
+    var err = document.getElementById('add-error');
+    err.textContent = "⚠️ Couldn't extract from that link. Make sure it's a public recipe page. Facebook/Instagram won't work — screenshot and use photo instead.";
+    err.style.display = 'block';
+  });
+}
+
+// Start
+init();
 </script>
 
 </body>
