@@ -1,29 +1,15 @@
-// Jojo’s Recipes — Service Worker
-const CACHE = “jojos-v1”;
-
-self.addEventListener(“install”, e => {
-self.skipWaiting();
-e.waitUntil(
-caches.open(CACHE).then(c => c.addAll([”./”, “./index.html”]))
-);
-});
-
-self.addEventListener(“activate”, e => {
-e.waitUntil(
-caches.keys().then(keys =>
-Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
-)
-);
-self.clients.claim();
-});
-
-self.addEventListener(“fetch”, e => {
-// Network-first for API calls, cache-first for app shell
-if (e.request.url.includes(“anthropic.com”)) {
-e.respondWith(fetch(e.request));
-return;
-}
+// Jojo’s Recipes — Service Worker (network-first = always gets latest version)
+self.addEventListener(‘install’, function(e) { self.skipWaiting(); });
+self.addEventListener(‘activate’, function(e) { self.clients.claim(); });
+self.addEventListener(‘fetch’, function(e) {
+// Always try network first; fall back to cache only if offline
 e.respondWith(
-caches.match(e.request).then(cached => cached || fetch(e.request))
+fetch(e.request).then(function(res) {
+var clone = res.clone();
+caches.open(‘jojos-v2’).then(function(cache) { cache.put(e.request, clone); });
+return res;
+}).catch(function() {
+return caches.match(e.request);
+})
 );
 });
