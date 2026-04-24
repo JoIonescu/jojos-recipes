@@ -142,6 +142,21 @@
 .conv-tabs{display:flex;gap:6px;margin-bottom:16px}
 .conv-tab{flex:1;padding:8px;border:1px solid #d6cbb8;border-radius:6px;background:transparent;font-size:13px;cursor:pointer;font-family:Georgia,serif;color:#8a7a62}
 .conv-tab.active{background:#2c2416;color:#e8d9b8;border-color:#2c2416}
+
+/* Export/Import */
+#data-btn{position:fixed;bottom:calc(84px + env(safe-area-inset-bottom,0px));right:20px;width:40px;height:40px;border-radius:50%;background:#2c2416;color:#e8d9b8;border:none;font-size:16px;cursor:pointer;z-index:200;box-shadow:0 3px 12px rgba(0,0,0,0.2)}
+#data-panel{position:fixed;bottom:0;left:0;right:0;background:#fff;border-radius:20px 20px 0 0;padding:24px 24px calc(24px + env(safe-area-inset-bottom,0px));z-index:400;box-shadow:0 -4px 24px rgba(0,0,0,0.15);transform:translateY(100%);transition:transform 0.28s ease;max-width:500px;margin:0 auto}
+#data-panel.open{transform:translateY(0)}
+#data-overlay{position:fixed;inset:0;background:rgba(44,36,22,0);z-index:399;pointer-events:none;transition:background 0.28s}
+#data-overlay.open{background:rgba(44,36,22,0.45);pointer-events:auto}
+.data-btn-row{display:flex;flex-direction:column;gap:10px;margin-top:4px}
+.data-action-btn{padding:14px;border-radius:8px;font-size:16px;cursor:pointer;font-family:Georgia,serif;border:none;text-align:left}
+.data-export-btn{background:#2c2416;color:#e8d9b8}
+.data-import-btn{background:#c4854a;color:#fff}
+#import-paste{width:100%;height:80px;border:1.5px solid #d6cbb8;border-radius:8px;padding:10px;font-size:13px;font-family:monospace;margin-top:10px;outline:none;display:none;resize:none}
+.data-msg{font-size:14px;margin-top:10px;padding:10px 14px;border-radius:6px;display:none}
+.data-msg.ok{background:#f0faf0;color:#2a6a2a;border:1px solid #a0cca0}
+.data-msg.err{background:#fdf0e8;color:#8a3a10;border:1px solid #e8b48a}
 /* Edit screen */
 .edit-field-label{font-size:12px;font-weight:bold;letter-spacing:0.1em;text-transform:uppercase;color:#8a7a62;margin-bottom:4px;margin-top:14px;display:block}
 .edit-input{width:100%;border:1.5px solid #d6cbb8;border-radius:8px;padding:10px 12px;font-size:16px;outline:none;background:#fff;color:#2c2416;font-family:Georgia,serif;margin-bottom:2px}
@@ -334,6 +349,23 @@
       </div>
     </div>
   </div>
+
+<!-- DATA BACKUP BUTTON -->
+
+<button id="data-btn" title="Backup & restore">💾</button>
+
+<div id="data-overlay"></div>
+<div id="data-panel">
+  <div class="conv-title">Backup & Restore <button class="conv-close" id="data-close">×</button></div>
+  <p style="font-size:14px;color:#8a7a62;margin-bottom:16px;line-height:1.5">Use this to move your recipes to a new app install, or keep a backup.</p>
+  <div class="data-btn-row">
+    <button class="data-action-btn data-export-btn" id="do-export">📤 Export — copy all recipes to clipboard</button>
+    <button class="data-action-btn data-import-btn" id="do-import-btn">📥 Import — paste recipes from clipboard</button>
+  </div>
+  <textarea id="import-paste" placeholder="Paste your exported recipes here…"></textarea>
+  <button id="do-import-confirm" style="display:none;margin-top:8px;width:100%;padding:12px;background:#c4854a;color:#fff;border:none;border-radius:8px;font-size:16px;cursor:pointer;font-family:Georgia,serif">Import now</button>
+  <div id="data-msg" class="data-msg"></div>
+</div>
 
 <!-- FLOATING CONVERTER BUTTON -->
 
@@ -1097,8 +1129,159 @@ function initConverter() {
   };
 }
 
+
+// ── Export / Import ────────────────────────────────────────────────────────────
+function initDataPanel() {
+  function openData() {
+    document.getElementById('data-panel').className = 'open';
+    document.getElementById('data-overlay').className = 'open';
+  }
+  function closeData() {
+    document.getElementById('data-panel').className = '';
+    document.getElementById('data-overlay').className = '';
+    document.getElementById('import-paste').style.display = 'none';
+    document.getElementById('import-paste').value = '';
+    document.getElementById('do-import-confirm').style.display = 'none';
+    var msg = document.getElementById('data-msg');
+    msg.style.display = 'none'; msg.className = 'data-msg';
+  }
+  document.getElementById('data-btn').onclick = openData;
+  document.getElementById('data-close').onclick = closeData;
+  document.getElementById('data-overlay').onclick = closeData;
+
+  document.getElementById('do-export').onclick = function() {
+    var json = localStorage.getItem(DB_KEY) || '[]';
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(json).then(function() {
+        showDataMsg('ok', '✓ '+JSON.parse(json).length+' recipes copied to clipboard! Now open the new app and use Import.');
+      }).catch(function() { showDataMsg('err', 'Could not copy automatically — see below and copy manually.'); });
+    } else {
+      // Fallback: show in textarea
+      var ta = document.getElementById('import-paste');
+      ta.value = json; ta.style.display = 'block';
+      showDataMsg('ok', 'Select all the text above and copy it manually.');
+    }
+  };
+
+  document.getElementById('do-import-btn').onclick = function() {
+    var ta = document.getElementById('import-paste');
+    ta.style.display = 'block';
+    ta.placeholder = 'Paste your exported recipes here…';
+    document.getElementById('do-import-confirm').style.display = 'block';
+    ta.focus();
+  };
+
+  document.getElementById('do-import-confirm').onclick = function() {
+    var text = document.getElementById('import-paste').value.trim();
+    try {
+      var imported = JSON.parse(text);
+      if (!Array.isArray(imported)) throw new Error('Not an array');
+      // Merge: keep existing, add imported ones that don't exist yet
+      var existing = recipes.slice();
+      var existingIds = {};
+      existing.forEach(function(r){ existingIds[r.id]=true; });
+      var added = 0;
+      imported.forEach(function(r) {
+        if (!existingIds[r.id]) { existing.push(r); added++; }
+      });
+      recipes = existing;
+      saveAll();
+      renderList();
+      showDataMsg('ok', '✓ Imported '+added+' recipes successfully!');
+      document.getElementById('import-paste').style.display = 'none';
+      document.getElementById('do-import-confirm').style.display = 'none';
+    } catch(e) {
+      showDataMsg('err', '⚠️ Invalid data — make sure you pasted the full export.');
+    }
+  };
+
+  function showDataMsg(type, text) {
+    var el = document.getElementById('data-msg');
+    el.textContent = text;
+    el.className = 'data-msg ' + type;
+    el.style.display = 'block';
+  }
+}
+
+
+// ── Export / Import ────────────────────────────────────────────────────────────
+function initDataPanel() {
+  function openData() {
+    document.getElementById('data-panel').className = 'open';
+    document.getElementById('data-overlay').className = 'open';
+  }
+  function closeData() {
+    document.getElementById('data-panel').className = '';
+    document.getElementById('data-overlay').className = '';
+    document.getElementById('import-paste').style.display = 'none';
+    document.getElementById('import-paste').value = '';
+    document.getElementById('do-import-confirm').style.display = 'none';
+    var msg = document.getElementById('data-msg');
+    msg.style.display = 'none'; msg.className = 'data-msg';
+  }
+  document.getElementById('data-btn').onclick = openData;
+  document.getElementById('data-close').onclick = closeData;
+  document.getElementById('data-overlay').onclick = closeData;
+
+  document.getElementById('do-export').onclick = function() {
+    var json = localStorage.getItem(DB_KEY) || '[]';
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(json).then(function() {
+        showDataMsg('ok', '✓ '+JSON.parse(json).length+' recipes copied to clipboard! Now open the new app and use Import.');
+      }).catch(function() { showDataMsg('err', 'Could not copy automatically — see below and copy manually.'); });
+    } else {
+      // Fallback: show in textarea
+      var ta = document.getElementById('import-paste');
+      ta.value = json; ta.style.display = 'block';
+      showDataMsg('ok', 'Select all the text above and copy it manually.');
+    }
+  };
+
+  document.getElementById('do-import-btn').onclick = function() {
+    var ta = document.getElementById('import-paste');
+    ta.style.display = 'block';
+    ta.placeholder = 'Paste your exported recipes here…';
+    document.getElementById('do-import-confirm').style.display = 'block';
+    ta.focus();
+  };
+
+  document.getElementById('do-import-confirm').onclick = function() {
+    var text = document.getElementById('import-paste').value.trim();
+    try {
+      var imported = JSON.parse(text);
+      if (!Array.isArray(imported)) throw new Error('Not an array');
+      // Merge: keep existing, add imported ones that don't exist yet
+      var existing = recipes.slice();
+      var existingIds = {};
+      existing.forEach(function(r){ existingIds[r.id]=true; });
+      var added = 0;
+      imported.forEach(function(r) {
+        if (!existingIds[r.id]) { existing.push(r); added++; }
+      });
+      recipes = existing;
+      saveAll();
+      renderList();
+      showDataMsg('ok', '✓ Imported '+added+' recipes successfully!');
+      document.getElementById('import-paste').style.display = 'none';
+      document.getElementById('do-import-confirm').style.display = 'none';
+    } catch(e) {
+      showDataMsg('err', '⚠️ Invalid data — make sure you pasted the full export.');
+    }
+  };
+
+  function showDataMsg(type, text) {
+    var el = document.getElementById('data-msg');
+    el.textContent = text;
+    el.className = 'data-msg ' + type;
+    el.style.display = 'block';
+  }
+}
+
 // Start
 init();
+initConverter();
+initDataPanel();
+initDataPanel();
 initConverter();
 </script>
 
