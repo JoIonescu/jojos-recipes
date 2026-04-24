@@ -119,6 +119,29 @@
 .source-link{font-size:13px;color:#8a7a62;margin-top:20px;word-break:break-all}
 .source-link a{color:#c4854a}
 .delete-btn{margin-top:24px;background:none;border:1px solid #d6cbb8;border-radius:6px;padding:10px 18px;color:#8a7a62;font-size:14px;cursor:pointer}
+
+/* Floating converter button */
+#conv-fab{position:fixed;bottom:calc(24px + env(safe-area-inset-bottom,0px));right:20px;width:52px;height:52px;border-radius:50%;background:#c4854a;color:#fff;border:none;font-size:22px;cursor:pointer;z-index:200;box-shadow:0 3px 12px rgba(0,0,0,0.25);display:flex;align-items:center;justify-content:center}
+
+/* Converter panel */
+#conv-panel{position:fixed;bottom:0;left:0;right:0;background:#fff;border-radius:20px 20px 0 0;padding:24px 24px calc(24px + env(safe-area-inset-bottom,0px));z-index:300;box-shadow:0 -4px 24px rgba(0,0,0,0.15);transform:translateY(100%);transition:transform 0.28s ease;max-width:500px;margin:0 auto}
+#conv-panel.open{transform:translateY(0)}
+#conv-overlay{position:fixed;inset:0;background:rgba(44,36,22,0);z-index:299;pointer-events:none;transition:background 0.28s ease}
+#conv-overlay.open{background:rgba(44,36,22,0.45);pointer-events:auto}
+.conv-title{font-size:20px;font-weight:bold;margin-bottom:16px;color:#2c2416}
+.conv-close{float:right;background:none;border:none;font-size:22px;cursor:pointer;color:#8a7a62;margin-top:-4px}
+.conv-row{display:flex;gap:8px;align-items:center;margin-bottom:12px}
+.conv-input{flex:1;border:1.5px solid #d6cbb8;border-radius:8px;padding:10px 12px;font-size:18px;outline:none;color:#2c2416;font-family:Georgia,serif;min-width:0}
+.conv-input:focus{border-color:#c4854a}
+.conv-unit{font-size:14px;color:#8a7a62;min-width:40px}
+.conv-select{width:100%;border:1.5px solid #d6cbb8;border-radius:8px;padding:10px 12px;font-size:15px;outline:none;color:#2c2416;font-family:Georgia,serif;background:#fff;margin-bottom:14px}
+.conv-select:focus{border-color:#c4854a}
+.conv-result{background:#faf7f2;border-left:3px solid #c4854a;border-radius:0 8px 8px 0;padding:14px 16px;font-size:17px;color:#2c2416;line-height:1.6;min-height:52px}
+.conv-result span{color:#c4854a;font-weight:bold;font-size:20px}
+.conv-swap{background:none;border:1px solid #d6cbb8;border-radius:6px;padding:8px 14px;font-size:16px;cursor:pointer;color:#8a7a62;width:100%;margin-bottom:12px}
+.conv-tabs{display:flex;gap:6px;margin-bottom:16px}
+.conv-tab{flex:1;padding:8px;border:1px solid #d6cbb8;border-radius:6px;background:transparent;font-size:13px;cursor:pointer;font-family:Georgia,serif;color:#8a7a62}
+.conv-tab.active{background:#2c2416;color:#e8d9b8;border-color:#2c2416}
 /* Edit screen */
 .edit-field-label{font-size:12px;font-weight:bold;letter-spacing:0.1em;text-transform:uppercase;color:#8a7a62;margin-bottom:4px;margin-top:14px;display:block}
 .edit-input{width:100%;border:1.5px solid #d6cbb8;border-radius:8px;padding:10px 12px;font-size:16px;outline:none;background:#fff;color:#2c2416;font-family:Georgia,serif;margin-bottom:2px}
@@ -311,6 +334,63 @@
       </div>
     </div>
   </div>
+
+<!-- FLOATING CONVERTER BUTTON -->
+
+<button id="conv-fab" title="Unit converter">⚖️</button>
+
+<!-- CONVERTER PANEL -->
+
+<div id="conv-overlay"></div>
+<div id="conv-panel">
+  <div class="conv-title">Unit Converter <button class="conv-close" id="conv-close">×</button></div>
+  <div class="conv-tabs">
+    <button class="conv-tab active" data-tab="weight">Cups ↔ Grams</button>
+    <button class="conv-tab" data-tab="temp">Temperature</button>
+    <button class="conv-tab" data-tab="volume">Volume</button>
+  </div>
+
+  <!-- WEIGHT TAB -->
+
+  <div id="conv-tab-weight">
+    <select id="conv-ingredient" class="conv-select"></select>
+    <div class="conv-row">
+      <input id="conv-cups" class="conv-input" type="number" placeholder="0" min="0" step="0.25"/>
+      <span class="conv-unit">cups</span>
+      <span style="color:#c4854a;font-size:18px;padding:0 4px">=</span>
+      <input id="conv-grams" class="conv-input" type="number" placeholder="0" min="0"/>
+      <span class="conv-unit">grams</span>
+    </div>
+    <button class="conv-swap" id="conv-also-tbsp">Also show tablespoons / ml</button>
+    <div class="conv-result" id="conv-weight-result">Enter a value above to convert.</div>
+  </div>
+
+  <!-- TEMP TAB -->
+
+  <div id="conv-tab-temp" style="display:none">
+    <div class="conv-row">
+      <input id="conv-celsius" class="conv-input" type="number" placeholder="°C"/>
+      <span class="conv-unit">°C</span>
+      <span style="color:#c4854a;font-size:18px;padding:0 4px">=</span>
+      <input id="conv-fahrenheit" class="conv-input" type="number" placeholder="°F"/>
+      <span class="conv-unit">°F</span>
+    </div>
+    <div class="conv-result" id="conv-temp-result">Enter °C or °F to convert.</div>
+  </div>
+
+  <!-- VOLUME TAB -->
+
+  <div id="conv-tab-volume" style="display:none">
+    <div class="conv-row">
+      <input id="conv-ml" class="conv-input" type="number" placeholder="ml"/>
+      <span class="conv-unit">ml</span>
+      <span style="color:#c4854a;font-size:18px;padding:0 4px">=</span>
+      <input id="conv-floz" class="conv-input" type="number" placeholder="fl oz"/>
+      <span class="conv-unit">fl oz</span>
+    </div>
+    <div class="conv-result" id="conv-vol-result">Enter ml or fl oz to convert.</div>
+  </div>
+</div>
 
 </div><!-- /app -->
 
@@ -860,8 +940,166 @@ function doURLExtract() {
   });
 }
 
+
+// ── Converter ─────────────────────────────────────────────────────────────────
+var INGREDIENTS = [
+  {name:'All-purpose flour',   gPerCup:125},
+  {name:'Bread flour',         gPerCup:130},
+  {name:'Whole wheat flour',   gPerCup:120},
+  {name:'Almond flour',        gPerCup:96},
+  {name:'Cocoa powder',        gPerCup:85},
+  {name:'Cornstarch',          gPerCup:120},
+  {name:'White sugar',         gPerCup:200},
+  {name:'Brown sugar (packed)',gPerCup:220},
+  {name:'Powdered sugar',      gPerCup:120},
+  {name:'Honey',               gPerCup:340},
+  {name:'Maple syrup',         gPerCup:320},
+  {name:'Butter',              gPerCup:227},
+  {name:'Vegetable oil',       gPerCup:218},
+  {name:'Olive oil',           gPerCup:216},
+  {name:'Milk',                gPerCup:240},
+  {name:'Heavy cream',         gPerCup:238},
+  {name:'Water',               gPerCup:240},
+  {name:'Rice (uncooked)',     gPerCup:185},
+  {name:'Rolled oats',         gPerCup:90},
+  {name:'Breadcrumbs',         gPerCup:108},
+  {name:'Parmesan (grated)',   gPerCup:80},
+  {name:'Salt (table)',        gPerCup:292},
+  {name:'Salt (kosher)',       gPerCup:144},
+  {name:'Baking powder',       gPerCup:230},
+  {name:'Baking soda',         gPerCup:230},
+];
+
+var convTab = 'weight';
+var showExtra = false;
+
+function initConverter() {
+  // Populate ingredient select
+  var sel = document.getElementById('conv-ingredient');
+  INGREDIENTS.forEach(function(ing, i) {
+    var opt = document.createElement('option');
+    opt.value = i; opt.textContent = ing.name;
+    sel.appendChild(opt);
+  });
+
+  // Tabs
+  var tabs = document.querySelectorAll('.conv-tab');
+  for (var ti=0; ti<tabs.length; ti++) {
+    tabs[ti].onclick = function() {
+      convTab = this.dataset.tab;
+      for (var tj=0; tj<tabs.length; tj++) tabs[tj].className = 'conv-tab';
+      this.className = 'conv-tab active';
+      document.getElementById('conv-tab-weight').style.display = convTab==='weight'?'block':'none';
+      document.getElementById('conv-tab-temp').style.display   = convTab==='temp'  ?'block':'none';
+      document.getElementById('conv-tab-volume').style.display = convTab==='volume'?'block':'none';
+    };
+  }
+
+  // FAB open/close
+  document.getElementById('conv-fab').onclick = function() {
+    document.getElementById('conv-panel').className = 'open';
+    document.getElementById('conv-overlay').className = 'open';
+  };
+  function closeConv() {
+    document.getElementById('conv-panel').className = '';
+    document.getElementById('conv-overlay').className = '';
+  }
+  document.getElementById('conv-close').onclick = closeConv;
+  document.getElementById('conv-overlay').onclick = closeConv;
+
+  // ── Weight conversions ──
+  function getGPerCup() {
+    var idx = parseInt(document.getElementById('conv-ingredient').value);
+    return INGREDIENTS[idx].gPerCup;
+  }
+  function updateWeightResult(grams, cups) {
+    var idx = parseInt(document.getElementById('conv-ingredient').value);
+    var ing = INGREDIENTS[idx];
+    var tbsp = Math.round(cups * 16 * 10) / 10;
+    var ml   = Math.round(cups * 240);
+    var res  = '<span>'+Math.round(grams)+'g</span> = <span>'+Math.round(cups*100)/100+' cup'+(cups!==1?'s':'')+'</span>';
+    if (showExtra) res += '<br><small style="color:#8a7a62">also: '+tbsp+' tbsp &nbsp;·&nbsp; ~'+ml+' ml</small>';
+    document.getElementById('conv-weight-result').innerHTML = res;
+  }
+
+  document.getElementById('conv-cups').oninput = function() {
+    var cups = parseFloat(this.value);
+    if (isNaN(cups)||cups<0) { document.getElementById('conv-weight-result').textContent='Enter a value above to convert.'; document.getElementById('conv-grams').value=''; return; }
+    var grams = cups * getGPerCup();
+    document.getElementById('conv-grams').value = Math.round(grams);
+    updateWeightResult(grams, cups);
+  };
+
+  document.getElementById('conv-grams').oninput = function() {
+    var grams = parseFloat(this.value);
+    if (isNaN(grams)||grams<0) { document.getElementById('conv-weight-result').textContent='Enter a value above to convert.'; document.getElementById('conv-cups').value=''; return; }
+    var cups = grams / getGPerCup();
+    document.getElementById('conv-cups').value = Math.round(cups*100)/100;
+    updateWeightResult(grams, cups);
+  };
+
+  document.getElementById('conv-ingredient').onchange = function() {
+    var cv = parseFloat(document.getElementById('conv-cups').value);
+    if (!isNaN(cv) && cv >= 0) {
+      var grams = cv * getGPerCup();
+      document.getElementById('conv-grams').value = Math.round(grams);
+      updateWeightResult(grams, cv);
+    }
+  };
+
+  document.getElementById('conv-also-tbsp').onclick = function() {
+    showExtra = !showExtra;
+    this.style.borderColor = showExtra ? '#c4854a' : '#d6cbb8';
+    this.style.color       = showExtra ? '#c4854a' : '#8a7a62';
+    var cv = parseFloat(document.getElementById('conv-cups').value);
+    if (!isNaN(cv) && cv >= 0) updateWeightResult(cv * getGPerCup(), cv);
+  };
+
+  // ── Temperature ──
+  document.getElementById('conv-celsius').oninput = function() {
+    var c = parseFloat(this.value);
+    if (isNaN(c)) { document.getElementById('conv-temp-result').textContent='Enter °C or °F to convert.'; document.getElementById('conv-fahrenheit').value=''; return; }
+    var f = Math.round((c*9/5+32)*10)/10;
+    document.getElementById('conv-fahrenheit').value = f;
+    document.getElementById('conv-temp-result').innerHTML = '<span>'+c+'°C</span> = <span>'+f+'°F</span><br><small style="color:#8a7a62">Gas mark: '+celsiusToGas(c)+'</small>';
+  };
+  document.getElementById('conv-fahrenheit').oninput = function() {
+    var f = parseFloat(this.value);
+    if (isNaN(f)) { document.getElementById('conv-temp-result').textContent='Enter °C or °F to convert.'; document.getElementById('conv-celsius').value=''; return; }
+    var c = Math.round((f-32)*5/9*10)/10;
+    document.getElementById('conv-celsius').value = c;
+    document.getElementById('conv-temp-result').innerHTML = '<span>'+f+'°F</span> = <span>'+c+'°C</span><br><small style="color:#8a7a62">Gas mark: '+celsiusToGas(c)+'</small>';
+  };
+  function celsiusToGas(c) {
+    if (c<135) return '½'; if (c<150) return '1'; if (c<165) return '2';
+    if (c<175) return '3'; if (c<190) return '4'; if (c<200) return '5';
+    if (c<220) return '6'; if (c<230) return '7'; if (c<245) return '8'; return '9';
+  }
+
+  // ── Volume ──
+  document.getElementById('conv-ml').oninput = function() {
+    var ml = parseFloat(this.value);
+    if (isNaN(ml)) { document.getElementById('conv-vol-result').textContent='Enter ml or fl oz to convert.'; document.getElementById('conv-floz').value=''; return; }
+    var fl = Math.round(ml/29.5735*100)/100;
+    var tsp = Math.round(ml/4.929*10)/10;
+    var tbsp = Math.round(ml/14.787*10)/10;
+    document.getElementById('conv-floz').value = fl;
+    document.getElementById('conv-vol-result').innerHTML = '<span>'+ml+'ml</span> = <span>'+fl+' fl oz</span><br><small style="color:#8a7a62">also: '+tsp+' tsp &nbsp;·&nbsp; '+tbsp+' tbsp</small>';
+  };
+  document.getElementById('conv-floz').oninput = function() {
+    var fl = parseFloat(this.value);
+    if (isNaN(fl)) { document.getElementById('conv-vol-result').textContent='Enter ml or fl oz to convert.'; document.getElementById('conv-ml').value=''; return; }
+    var ml = Math.round(fl*29.5735);
+    var tsp = Math.round(fl*6*10)/10;
+    var tbsp = Math.round(fl*2*10)/10;
+    document.getElementById('conv-ml').value = ml;
+    document.getElementById('conv-vol-result').innerHTML = '<span>'+fl+' fl oz</span> = <span>'+ml+'ml</span><br><small style="color:#8a7a62">also: '+tsp+' tsp &nbsp;·&nbsp; '+tbsp+' tbsp</small>';
+  };
+}
+
 // Start
 init();
+initConverter();
 </script>
 
 </body>
