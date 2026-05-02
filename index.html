@@ -403,13 +403,33 @@
     </div>
     <button id="clear-photos-btn" style="margin-top:10px;width:100%;padding:10px;background:none;border:1px solid #d6cbb8;border-radius:8px;font-size:14px;color:#8a7a62;cursor:pointer;font-family:Georgia,serif">🗜 Re-compress all photos to free space</button>
   </div>
-  <p style="font-size:14px;color:#8a7a62;margin-bottom:16px;line-height:1.5">Use this to move your recipes to a new app install, or keep a backup.</p>
-  <div class="data-btn-row">
-    <button class="data-action-btn data-export-btn" id="do-export">📤 Export — copy all recipes to clipboard</button>
-    <button class="data-action-btn data-import-btn" id="do-import-btn">📥 Import — paste recipes from clipboard</button>
+
+  <!-- Push to Supabase -->
+
+  <div style="background:#f0faf5;border:1px solid #a0cca0;border-radius:8px;padding:14px;margin-bottom:14px">
+    <div style="font-size:14px;font-weight:bold;color:#2a6a2a;margin-bottom:6px">☁️ Sync to cloud (recommended)</div>
+    <div style="font-size:13px;color:#5a7a5a;margin-bottom:10px;line-height:1.5">Push all your recipes directly to Supabase. Then open the new app and they will load automatically.</div>
+    <button id="push-to-supabase" style="width:100%;padding:12px;background:#2a6a2a;color:#fff;border:none;border-radius:8px;font-size:15px;cursor:pointer;font-family:Georgia,serif">Push all recipes to Supabase →</button>
   </div>
-  <textarea id="import-paste" placeholder="Paste your exported recipes here…"></textarea>
-  <button id="do-import-confirm" style="display:none;margin-top:8px;width:100%;padding:12px;background:#c4854a;color:#fff;border:none;border-radius:8px;font-size:16px;cursor:pointer;font-family:Georgia,serif">Import now</button>
+
+  <!-- Manual export/import -->
+
+  <details style="margin-bottom:4px">
+    <summary style="font-size:14px;color:#8a7a62;cursor:pointer;padding:4px 0">Manual export / import</summary>
+    <div style="margin-top:12px">
+      <button class="data-action-btn data-export-btn" id="do-export" style="margin-bottom:10px">📤 Export — show recipes as text</button>
+      <div id="export-area" style="display:none;margin-bottom:10px">
+        <div style="font-size:13px;color:#8a7a62;margin-bottom:6px">Select all the text below and copy it:</div>
+        <textarea id="export-text" style="width:100%;height:100px;font-size:12px;font-family:monospace;border:1.5px solid #d6cbb8;border-radius:6px;padding:8px;resize:none" readonly></textarea>
+      </div>
+      <button class="data-action-btn data-import-btn" id="do-import-btn">📥 Import — paste recipes</button>
+      <div id="import-area" style="display:none;margin-top:10px">
+        <div style="font-size:13px;color:#8a7a62;margin-bottom:6px">Long-press below and tap <strong>Paste</strong>:</div>
+        <textarea id="import-paste" style="width:100%;height:80px;border:1.5px solid #d6cbb8;border-radius:8px;padding:10px;font-size:13px;font-family:monospace;resize:none;outline:none" placeholder="Long-press here → Paste"></textarea>
+        <button id="do-import-confirm" style="margin-top:8px;width:100%;padding:12px;background:#c4854a;color:#fff;border:none;border-radius:8px;font-size:16px;cursor:pointer;font-family:Georgia,serif">Import now</button>
+      </div>
+    </div>
+  </details>
   <div id="data-msg" class="data-msg"></div>
 </div>
 
@@ -1400,26 +1420,33 @@ function initDataPanel() {
   document.getElementById('data-close').onclick = closeData;
   document.getElementById('data-overlay').onclick = closeData;
 
+  // Push to Supabase button
+  document.getElementById('push-to-supabase').onclick = function() {
+    var btn = this;
+    btn.textContent = 'Pushing…'; btn.disabled = true;
+    var promises = recipes.map(function(r){ return sbSave(r); });
+    Promise.all(promises).then(function() {
+      showDataMsg('ok', '✓ '+recipes.length+' recipes pushed to Supabase! Open the new app and they will load automatically.');
+      btn.textContent = '✓ Done!';
+    }).catch(function(e) {
+      showDataMsg('err', '⚠️ Error: '+e.message+'. Check your Supabase setup.');
+      btn.textContent = 'Push all recipes to Supabase →'; btn.disabled = false;
+    });
+  };
+
   document.getElementById('do-export').onclick = function() {
     var json = localStorage.getItem(DB_KEY) || '[]';
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(json).then(function() {
-        showDataMsg('ok', '✓ '+JSON.parse(json).length+' recipes copied to clipboard! Now open the new app and use Import.');
-      }).catch(function() { showDataMsg('err', 'Could not copy automatically — see below and copy manually.'); });
-    } else {
-      // Fallback: show in textarea
-      var ta = document.getElementById('import-paste');
-      ta.value = json; ta.style.display = 'block';
-      showDataMsg('ok', 'Select all the text above and copy it manually.');
-    }
+    var area = document.getElementById('export-area');
+    var ta   = document.getElementById('export-text');
+    ta.value = json;
+    area.style.display = 'block';
+    ta.select();
+    showDataMsg('ok', JSON.parse(json).length+' recipes. Select all the text and copy it.');
   };
 
   document.getElementById('do-import-btn').onclick = function() {
-    var ta = document.getElementById('import-paste');
-    ta.style.display = 'block';
-    ta.placeholder = 'Paste your exported recipes here…';
-    document.getElementById('do-import-confirm').style.display = 'block';
-    ta.focus();
+    document.getElementById('import-area').style.display = 'block';
+    document.getElementById('import-paste').focus();
   };
 
   document.getElementById('do-import-confirm').onclick = function() {
@@ -1520,26 +1547,33 @@ function initDataPanel() {
   document.getElementById('data-close').onclick = closeData;
   document.getElementById('data-overlay').onclick = closeData;
 
+  // Push to Supabase button
+  document.getElementById('push-to-supabase').onclick = function() {
+    var btn = this;
+    btn.textContent = 'Pushing…'; btn.disabled = true;
+    var promises = recipes.map(function(r){ return sbSave(r); });
+    Promise.all(promises).then(function() {
+      showDataMsg('ok', '✓ '+recipes.length+' recipes pushed to Supabase! Open the new app and they will load automatically.');
+      btn.textContent = '✓ Done!';
+    }).catch(function(e) {
+      showDataMsg('err', '⚠️ Error: '+e.message+'. Check your Supabase setup.');
+      btn.textContent = 'Push all recipes to Supabase →'; btn.disabled = false;
+    });
+  };
+
   document.getElementById('do-export').onclick = function() {
     var json = localStorage.getItem(DB_KEY) || '[]';
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(json).then(function() {
-        showDataMsg('ok', '✓ '+JSON.parse(json).length+' recipes copied to clipboard! Now open the new app and use Import.');
-      }).catch(function() { showDataMsg('err', 'Could not copy automatically — see below and copy manually.'); });
-    } else {
-      // Fallback: show in textarea
-      var ta = document.getElementById('import-paste');
-      ta.value = json; ta.style.display = 'block';
-      showDataMsg('ok', 'Select all the text above and copy it manually.');
-    }
+    var area = document.getElementById('export-area');
+    var ta   = document.getElementById('export-text');
+    ta.value = json;
+    area.style.display = 'block';
+    ta.select();
+    showDataMsg('ok', JSON.parse(json).length+' recipes. Select all the text and copy it.');
   };
 
   document.getElementById('do-import-btn').onclick = function() {
-    var ta = document.getElementById('import-paste');
-    ta.style.display = 'block';
-    ta.placeholder = 'Paste your exported recipes here…';
-    document.getElementById('do-import-confirm').style.display = 'block';
-    ta.focus();
+    document.getElementById('import-area').style.display = 'block';
+    document.getElementById('import-paste').focus();
   };
 
   document.getElementById('do-import-confirm').onclick = function() {
