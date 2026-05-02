@@ -409,7 +409,8 @@
   <div style="background:#f0faf5;border:1px solid #a0cca0;border-radius:8px;padding:14px;margin-bottom:14px">
     <div style="font-size:14px;font-weight:bold;color:#2a6a2a;margin-bottom:6px">☁️ Sync to cloud (recommended)</div>
     <div style="font-size:13px;color:#5a7a5a;margin-bottom:10px;line-height:1.5">Push all your recipes directly to Supabase. Then open the new app and they will load automatically.</div>
-    <button id="push-to-supabase" style="width:100%;padding:12px;background:#2a6a2a;color:#fff;border:none;border-radius:8px;font-size:15px;cursor:pointer;font-family:Georgia,serif">Push all recipes to Supabase →</button>
+    <button id="push-to-supabase" style="width:100%;padding:12px;background:#2a6a2a;color:#fff;border:none;border-radius:8px;font-size:15px;cursor:pointer;font-family:Georgia,serif;margin-bottom:8px">Push all recipes to Supabase →</button>
+    <button id="pull-from-supabase" style="width:100%;padding:12px;background:#fff;color:#2a6a2a;border:1.5px solid #2a6a2a;border-radius:8px;font-size:15px;cursor:pointer;font-family:Georgia,serif">← Load recipes from Supabase</button>
   </div>
 
   <!-- Manual export/import -->
@@ -1434,6 +1435,37 @@ function initDataPanel() {
     });
   };
 
+  document.getElementById('pull-from-supabase').onclick = function() {
+    var btn = this;
+    btn.textContent = 'Loading…'; btn.disabled = true;
+    sbLoad().then(function(sbRecipes) {
+      if (sbRecipes.length === 0) {
+        showDataMsg('err', '⚠️ No recipes found in Supabase. Have you pushed from the old app yet? Also check that the SQL table was created in Supabase dashboard.');
+      } else {
+        // Merge with existing
+        var byId = {};
+        recipes.forEach(function(r){ byId[r.id]=r; });
+        sbRecipes.forEach(function(r){
+          var local = byId[r.id];
+          if (local) {
+            r.photos = (r.photos||[null,null]).map(function(p,i){
+              return p || (local.photos&&local.photos[i])||null;
+            });
+          }
+          byId[r.id] = r;
+        });
+        recipes = Object.values ? Object.values(byId) : Object.keys(byId).map(function(k){return byId[k];});
+        saveAll();
+        renderList();
+        showDataMsg('ok', '✓ Loaded '+sbRecipes.length+' recipes from Supabase!');
+      }
+      btn.textContent = '← Load recipes from Supabase'; btn.disabled = false;
+    }).catch(function(e) {
+      showDataMsg('err', '⚠️ Could not reach Supabase: '+e.message+'. Check that the recipes table exists (run the SQL setup) and that your internet connection is on.');
+      btn.textContent = '← Load recipes from Supabase'; btn.disabled = false;
+    });
+  };
+
   document.getElementById('do-export').onclick = function() {
     var json = localStorage.getItem(DB_KEY) || '[]';
     var area = document.getElementById('export-area');
@@ -1558,6 +1590,37 @@ function initDataPanel() {
     }).catch(function(e) {
       showDataMsg('err', '⚠️ Error: '+e.message+'. Check your Supabase setup.');
       btn.textContent = 'Push all recipes to Supabase →'; btn.disabled = false;
+    });
+  };
+
+  document.getElementById('pull-from-supabase').onclick = function() {
+    var btn = this;
+    btn.textContent = 'Loading…'; btn.disabled = true;
+    sbLoad().then(function(sbRecipes) {
+      if (sbRecipes.length === 0) {
+        showDataMsg('err', '⚠️ No recipes found in Supabase. Have you pushed from the old app yet? Also check that the SQL table was created in Supabase dashboard.');
+      } else {
+        // Merge with existing
+        var byId = {};
+        recipes.forEach(function(r){ byId[r.id]=r; });
+        sbRecipes.forEach(function(r){
+          var local = byId[r.id];
+          if (local) {
+            r.photos = (r.photos||[null,null]).map(function(p,i){
+              return p || (local.photos&&local.photos[i])||null;
+            });
+          }
+          byId[r.id] = r;
+        });
+        recipes = Object.values ? Object.values(byId) : Object.keys(byId).map(function(k){return byId[k];});
+        saveAll();
+        renderList();
+        showDataMsg('ok', '✓ Loaded '+sbRecipes.length+' recipes from Supabase!');
+      }
+      btn.textContent = '← Load recipes from Supabase'; btn.disabled = false;
+    }).catch(function(e) {
+      showDataMsg('err', '⚠️ Could not reach Supabase: '+e.message+'. Check that the recipes table exists (run the SQL setup) and that your internet connection is on.');
+      btn.textContent = '← Load recipes from Supabase'; btn.disabled = false;
     });
   };
 
