@@ -265,6 +265,11 @@
         </div>
         <input id="img-input" type="file" accept="image/*" style="display:none"/>
       </div>
+      <div class="card">
+        <h3>📝 Paste a recipe text</h3>
+        <textarea id="text-input" style="width:100%;min-height:120px;border:1.5px solid #d6cbb8;border-radius:8px;padding:10px 12px;font-size:15px;outline:none;color:#2c2416;font-family:Georgia,serif;resize:vertical;line-height:1.6" placeholder="Paste any recipe text here — from an email, a blog post, a WhatsApp message, your own notes…"></textarea>
+        <button id="text-go-btn" style="margin-top:10px;width:100%;background:#2c2416;color:#e8d9b8;border:none;border-radius:6px;padding:11px;font-size:16px;cursor:pointer;font-family:Georgia,serif">Extract recipe →</button>
+      </div>
       <div id="add-error" style="display:none" class="error-box"></div>
     </div>
   </div>
@@ -892,6 +897,27 @@ function init() {
 
   // Image extraction
   document.getElementById('drop-zone').onclick = function(){ document.getElementById('img-input').click(); };
+
+  // Text paste extraction
+  document.getElementById('text-go-btn').onclick = function() {
+    var text = document.getElementById('text-input').value.trim();
+    if (!text) return;
+    showLoading('Reading your recipe…');
+    document.getElementById('add-error').style.display = 'none';
+    callClaude([{ role:'user', content:'Extract the recipe from this text:\n\n' + text.slice(0, 12000) }])
+      .then(function(raw) {
+        var r = JSON.parse(raw.replace(/```json|```/g,'').trim());
+        r.id = Date.now()+''; r.source='Text'; r.addedAt=new Date().toISOString();
+        r.done=false; r.myNotes=''; r.photos=[null,null];
+        previewRecipe = r;
+        hideLoading(); renderPreview(); showScreen('preview');
+      }).catch(function() {
+        hideLoading();
+        var err = document.getElementById('add-error');
+        err.textContent = "⚠️ Couldn't parse the recipe from that text. Try adding a title and ingredient list.";
+        err.style.display = 'block';
+      });
+  };
   document.getElementById('img-input').onchange = function() {
     var file = this.files[0]; if (!file) return;
     var mime = file.type;
