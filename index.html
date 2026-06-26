@@ -1030,8 +1030,15 @@ function init() {
       }
     }).catch(function(){ /* offline or setup not done yet */ });
 
-  // Keep-alive ping — prevents Supabase free tier from pausing due to inactivity
-  fetch(SB_URL+'/rest/v1/recipes?limit=1', { headers:sbH() }).catch(function(){});
+  // Keep-alive ping — upserts a heartbeat row so Supabase counts it as real activity
+  fetch(SB_URL+'/rest/v1/heartbeat', {
+    method:'POST',
+    headers:Object.assign({},sbH(),{'Prefer':'resolution=merge-duplicates'}),
+    body:JSON.stringify({id:'ping', ts:new Date().toISOString()})
+  }).catch(function(){
+    // heartbeat table may not exist yet — fall back to a read
+    fetch(SB_URL+'/rest/v1/recipes?limit=1', { headers:sbH() }).catch(function(){});
+  });
   }
 
   var pendingAction = null;
