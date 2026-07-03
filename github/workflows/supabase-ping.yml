@@ -10,5 +10,5 @@ jobs:
       - name: Ping Supabase
         run: |
           curl -X GET "https://dvtjlaamqgyifkrtjmtb.supabase.co/rest/v1/recipes?limit=1" \
-          -H "apikey: sb_publishable_9AXbdN_4od2Yx3Dq9cTyGg_YSwzOJ-v" \
-          -H "Authorization: Bearer sb_publishable_9AXbdN_4od2Yx3Dq9cTyGg_YSwzOJ-v"
+          -H "apikey: ${{ secrets.SUPABASE_KEY }}" \
+          -H "Authorization: Bearer ${{ secrets.SUPABASE_KEY }}"
