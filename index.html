@@ -10,7 +10,6 @@
   <meta name="theme-color" content="#2c2416"/>
   <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png"/>
   <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png"/>
-  <link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png"/>
   <link rel="shortcut icon" href="favicon.ico"/>
   <style>
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -18,49 +17,40 @@
     body{background:#f5f0e8;font-family:Georgia,serif;color:#2c2416;-webkit-font-smoothing:antialiased}
     @keyframes spin{to{transform:rotate(360deg)}}
 
-    /* Layout */
-    #app{min-height:100vh;background:#f5f0e8;padding-bottom:60px}
+    #app{min-height:100vh;background:#f5f0e8;padding-bottom:calc(72px + env(safe-area-inset-bottom,0px))}
     .screen{display:none}.screen.active{display:block}
 
     /* Header */
-    #header{
-      background:#2c2416;
-      padding-top:calc(16px + env(safe-area-inset-top,0px));
-      padding-bottom:16px;padding-left:24px;padding-right:24px;
-      display:flex;align-items:center;justify-content:space-between;
-      position:sticky;top:0;z-index:50
-    }
+    #header{background:#2c2416;padding-top:calc(16px + env(safe-area-inset-top,0px));padding-bottom:16px;padding-left:24px;padding-right:24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50}
     #logo{font-size:22px;font-weight:bold;color:#e8d9b8}
     #logo span{color:#c4854a}
     #recipe-count{background:#c4854a;color:#fff;font-size:11px;padding:2px 8px;border-radius:10px;margin-left:8px;display:none}
-    #header-btn{background:#c4854a;color:#fff;border:none;border-radius:6px;padding:8px 16px;font-size:15px;cursor:pointer}
+    #header-btn{background:#c4854a;color:#fff;border:none;border-radius:6px;padding:8px 16px;font-size:15px;cursor:pointer;display:none}
 
-    /* Search bar */
+    /* Search */
     #search-bar{padding:12px 24px 0;background:#ede7d8;border-bottom:1px solid #d6cbb8}
     #search-input{width:100%;background:#fff;border:1.5px solid #d6cbb8;border-radius:8px;padding:10px 14px;font-size:16px;outline:none;margin-bottom:10px;font-family:Georgia,serif}
     #filter-row{display:flex;gap:6px;padding-bottom:12px}
     .filter-btn{flex:1;background:transparent;color:#8a7a62;border:1px solid #d6cbb8;border-radius:6px;padding:6px 4px;font-size:13px;cursor:pointer;font-family:Georgia,serif}
     .filter-btn.active{background:#2c2416;color:#e8d9b8;border-color:#2c2416}
 
-    /* Recipe list */
-    #list-body{padding-bottom:40px}
+    /* List */
     .letter-head{font-size:11px;font-weight:bold;letter-spacing:0.2em;text-transform:uppercase;color:#c4854a;padding:14px 24px 4px}
     .recipe-row{display:flex;align-items:center;padding:11px 16px 11px 20px;border-bottom:1px solid #e8e0d0;gap:10px}
     .done-btn{width:30px;height:30px;border-radius:50%;border:2px solid #d6cbb8;background:transparent;color:#fff;font-size:14px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center}
     .done-btn.done{background:#4a8a4a;border-color:#4a8a4a}
     .row-info{flex:1;cursor:pointer;min-width:0}
     .row-name{font-size:19px;font-weight:bold;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-    .row-name.done{}
     .row-meta{font-size:13px;color:#8a7a62;margin-top:2px}
     .row-arrow{color:#c4854a;font-size:22px;cursor:pointer;flex-shrink:0}
 
-    /* Empty state */
+    /* Empty */
     .empty-state{text-align:center;padding:60px 24px;color:#8a7a62}
     .empty-state .icon{font-size:52px;margin-bottom:16px}
     .empty-state h2{font-size:22px;color:#2c2416;margin-bottom:8px}
     .empty-state p{font-size:16px;line-height:1.6}
 
-    /* Panel (add/detail) */
+    /* Panel */
     .panel{padding:24px;max-width:600px;margin:0 auto}
     .panel h2{font-size:26px;font-weight:bold;margin-bottom:6px}
     .panel .sub{font-size:15px;color:#8a7a62;margin-bottom:24px;line-height:1.5}
@@ -69,36 +59,33 @@
     .url-row{display:flex;gap:8px}
     .url-input{flex:1;border:1.5px solid #d6cbb8;border-radius:6px;padding:10px 12px;font-size:15px;outline:none;color:#2c2416;min-width:0;font-family:Georgia,serif}
     .go-btn{background:#2c2416;color:#e8d9b8;border:none;border-radius:6px;padding:10px 18px;font-size:15px;cursor:pointer;flex-shrink:0}
-    .go-btn:disabled{opacity:0.4;cursor:default}
     .drop-zone{border:2px dashed #d6cbb8;border-radius:8px;padding:24px;text-align:center;cursor:pointer}
-    .drop-zone .icon{font-size:32px;margin-bottom:6px}
-    .drop-zone p{font-size:15px;color:#8a7a62}
-    .drop-zone small{font-size:13px;color:#b0a390;margin-top:4px;display:block}
-    .error-box{background:#fdf0e8;border:1px solid #e8b48a;border-radius:6px;padding:12px 14px;font-size:14px;color:#8a3a10;margin-top:4px}
+    .error-box{background:#fdf0e8;border:1px solid #e8b48a;border-radius:6px;padding:12px 14px;font-size:14px;color:#8a3a10;margin-top:8px;display:none}
 
-    /* Preview banner */
+    /* Preview */
     #preview-banner{background:#c4854a;color:#fff;padding:10px 20px;font-size:13px;letter-spacing:0.06em;text-transform:uppercase}
     .confirm-row{display:flex;gap:10px;margin-top:20px}
     .confirm-btn{flex:1;background:#2c2416;color:#e8d9b8;border:none;border-radius:8px;padding:13px;font-size:17px;cursor:pointer;font-family:Georgia,serif}
     .discard-btn{flex:1;background:none;color:#8a7a62;border:1.5px solid #d6cbb8;border-radius:8px;padding:13px;font-size:17px;cursor:pointer;font-family:Georgia,serif}
 
-    /* Detail header */
+    /* Detail */
     #detail-header{background:#2c2416;padding:20px 24px}
     #detail-title{font-size:26px;color:#e8d9b8;font-weight:bold;margin-bottom:10px}
-    #detail-pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:10px}
+    #detail-pills{display:flex;flex-wrap:wrap;gap:7px}
     .pill{background:rgba(255,255,255,0.13);color:#c9bfae;padding:4px 12px;border-radius:20px;font-size:13px}
     .pill.accent{background:#c4854a;color:#fff}
-    #mark-btn{background:transparent;border:2px solid rgba(255,255,255,0.35);border-radius:8px;padding:6px 12px;color:rgba(255,255,255,0.65);font-size:14px;cursor:pointer;white-space:nowrap;margin-top:4px}
+    #mark-btn{background:transparent;border:2px solid rgba(255,255,255,0.35);border-radius:8px;padding:6px 12px;color:rgba(255,255,255,0.65);font-size:14px;cursor:pointer;white-space:nowrap;margin-top:8px}
     #mark-btn.done{background:#4a8a4a;border-color:#4a8a4a;color:#fff}
+    #edit-recipe-btn{background:none;border:1px solid rgba(255,255,255,0.3);border-radius:6px;padding:5px 12px;color:rgba(255,255,255,0.7);font-size:13px;cursor:pointer;margin-top:4px}
 
     /* Recipe content */
     .sec-title{font-size:12px;font-weight:bold;letter-spacing:0.18em;text-transform:uppercase;color:#c4854a;margin-top:22px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid #e8e0d0}
     .ing-row{display:flex;gap:10px;padding:7px 0;font-size:17px;border-bottom:1px solid #f0ebe0}
-    .ing-dot{color:#c4854a;font-size:20px;line-height:1.1;flex-shrink:0}
     .step-row{display:flex;gap:14px;padding:9px 0;font-size:17px;border-bottom:1px solid #f0ebe0;align-items:flex-start}
     .step-num{font-size:20px;color:#c4854a;font-weight:bold;min-width:20px;flex-shrink:0;line-height:1.3}
-    .step-text{line-height:1.7}
     .notes-box{background:#faf7f2;border-left:3px solid #c4854a;padding:14px 16px;border-radius:0 6px 6px 0;font-size:16px;line-height:1.6;color:#5a4e3a;font-style:italic;margin-top:8px}
+    .meta-tag{background:#ede7d8;color:#5a4e3a;padding:4px 12px;border-radius:20px;font-size:13px;display:inline-block;margin:3px 3px 3px 0}
+    .meta-tag.accent{background:#c4854a;color:#fff}
 
     /* Photos */
     .photo-row{display:flex;gap:12px;margin-bottom:4px}
@@ -109,10 +96,10 @@
     .photo-placeholder span{font-size:28px}
     .photo-placeholder p{font-size:13px;color:#8a7a62}
 
-    /* My notes */
+    /* My Notes */
     .my-notes-view{background:#f5f0e8;border:1.5px dashed #d6cbb8;border-radius:8px;padding:12px 14px;font-size:16px;line-height:1.7;color:#8a7a62;font-style:italic;cursor:pointer;min-height:60px}
     .my-notes-view.has-notes{background:#faf7f2;border-color:#c4854a;color:#2c2416;font-style:normal}
-    #notes-textarea{width:100%;min-height:100px;border:1.5px solid #d6cbb8;border-radius:8px;padding:10px 12px;font-size:16px;resize:vertical;outline:none;background:#fff;color:#2c2416;line-height:1.6;display:block;font-family:Georgia,serif}
+    .notes-textarea{width:100%;min-height:100px;border:1.5px solid #d6cbb8;border-radius:8px;padding:10px 12px;font-size:16px;resize:vertical;outline:none;background:#fff;color:#2c2416;line-height:1.6;display:block;font-family:Georgia,serif}
     .notes-edit-row{display:flex;gap:8px;margin-top:8px}
     .notes-save-btn{background:#2c2416;color:#e8d9b8;border:none;border-radius:6px;padding:9px 18px;font-size:15px;cursor:pointer}
     .notes-cancel-btn{background:none;border:1px solid #d6cbb8;border-radius:6px;padding:9px 18px;font-size:15px;cursor:pointer;color:#8a7a62}
@@ -122,86 +109,14 @@
     .source-link a{color:#c4854a}
     .delete-btn{margin-top:24px;background:none;border:1px solid #d6cbb8;border-radius:6px;padding:10px 18px;color:#8a7a62;font-size:14px;cursor:pointer}
 
-
-
-    /* Converter panel */
-    #conv-panel{position:fixed;bottom:0;left:0;right:0;background:#fff;border-radius:20px 20px 0 0;padding:24px 24px calc(24px + env(safe-area-inset-bottom,0px));z-index:300;box-shadow:0 -4px 24px rgba(0,0,0,0.15);transform:translateY(100%);transition:transform 0.28s ease;max-width:500px;margin:0 auto}
-    #conv-panel.open{transform:translateY(0)}
-    #conv-overlay{position:fixed;inset:0;background:rgba(44,36,22,0);z-index:299;pointer-events:none;transition:background 0.28s ease}
-    #conv-overlay.open{background:rgba(44,36,22,0.45);pointer-events:auto}
-    .conv-title{font-size:20px;font-weight:bold;margin-bottom:16px;color:#2c2416}
-    .conv-close{float:right;background:none;border:none;font-size:22px;cursor:pointer;color:#8a7a62;margin-top:-4px}
-    .conv-row{display:flex;gap:8px;align-items:center;margin-bottom:12px}
-    .conv-input{flex:1;border:1.5px solid #d6cbb8;border-radius:8px;padding:10px 12px;font-size:18px;outline:none;color:#2c2416;font-family:Georgia,serif;min-width:0}
-    .conv-input:focus{border-color:#c4854a}
-    .conv-unit{font-size:14px;color:#8a7a62;min-width:40px}
-    .conv-select{width:100%;border:1.5px solid #d6cbb8;border-radius:8px;padding:10px 12px;font-size:15px;outline:none;color:#2c2416;font-family:Georgia,serif;background:#fff;margin-bottom:14px}
-    .conv-select:focus{border-color:#c4854a}
-    .conv-result{background:#faf7f2;border-left:3px solid #c4854a;border-radius:0 8px 8px 0;padding:14px 16px;font-size:17px;color:#2c2416;line-height:1.6;min-height:52px}
-    .conv-result span{color:#c4854a;font-weight:bold;font-size:20px}
-    .conv-swap{background:none;border:1px solid #d6cbb8;border-radius:6px;padding:8px 14px;font-size:16px;cursor:pointer;color:#8a7a62;width:100%;margin-bottom:12px}
-    .conv-tabs{display:flex;gap:6px;margin-bottom:16px}
-    .conv-tab{flex:1;padding:8px;border:1px solid #d6cbb8;border-radius:6px;background:transparent;font-size:13px;cursor:pointer;font-family:Georgia,serif;color:#8a7a62}
-    .conv-tab.active{background:#2c2416;color:#e8d9b8;border-color:#2c2416}
-
-    /* Export/Import */
-    #data-btn{display:none}
-    #data-panel{position:fixed;bottom:0;left:0;right:0;background:#fff;border-radius:20px 20px 0 0;padding:24px 24px calc(24px + env(safe-area-inset-bottom,0px));z-index:400;box-shadow:0 -4px 24px rgba(0,0,0,0.15);transform:translateY(100%);transition:transform 0.28s ease;max-width:500px;margin:0 auto}
-    #data-panel.open{transform:translateY(0)}
-    #data-overlay{position:fixed;inset:0;background:rgba(44,36,22,0);z-index:399;pointer-events:none;transition:background 0.28s}
-    #data-overlay.open{background:rgba(44,36,22,0.45);pointer-events:auto}
-    .data-btn-row{display:flex;flex-direction:column;gap:10px;margin-top:4px}
-    .data-action-btn{padding:14px;border-radius:8px;font-size:16px;cursor:pointer;font-family:Georgia,serif;border:none;text-align:left}
-    .data-export-btn{background:#2c2416;color:#e8d9b8}
-    .data-import-btn{background:#c4854a;color:#fff}
-    #import-paste{width:100%;height:80px;border:1.5px solid #d6cbb8;border-radius:8px;padding:10px;font-size:13px;font-family:monospace;margin-top:10px;outline:none;display:none;resize:none}
-    .data-msg{font-size:14px;margin-top:10px;padding:10px 14px;border-radius:6px;display:none}
-    .data-msg.ok{background:#f0faf0;color:#2a6a2a;border:1px solid #a0cca0}
-    .data-msg.err{background:#fdf0e8;color:#8a3a10;border:1px solid #e8b48a}
-
-    /* Bottom nav bar */
-    #bottom-nav{
-      position:fixed;bottom:0;left:0;right:0;z-index:190;
-      background:#2c2416;
-      padding-bottom:env(safe-area-inset-bottom,0px);
-      display:flex;align-items:stretch;
-      box-shadow:0 -2px 16px rgba(0,0,0,0.18);
-    }
-    .nav-btn{
-      flex:1;background:none;border:none;cursor:pointer;
-      display:flex;flex-direction:column;align-items:center;justify-content:center;
-      padding:10px 0 10px;gap:4px;color:#8a7a62;transition:color 0.15s;
-    }
-    .nav-btn:active{color:#c4854a}
-    .nav-btn svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
-    .nav-btn span{font-size:10px;letter-spacing:0.06em;text-transform:uppercase;font-family:Georgia,serif}
-    .nav-btn-center{
-      flex:1.2;background:none;border:none;cursor:pointer;
-      display:flex;flex-direction:column;align-items:center;justify-content:center;
-      padding:8px 0 8px;gap:4px;color:#fff;
-    }
-    .nav-btn-center:active{opacity:0.8}
-    .nav-btn-center .nav-plus{
-      width:44px;height:44px;border-radius:50%;background:#c4854a;
-      display:flex;align-items:center;justify-content:center;
-      box-shadow:0 2px 10px rgba(196,133,74,0.5);
-    }
-    .nav-btn-center .nav-plus svg{width:22px;height:22px;stroke:#fff;fill:none;stroke-width:2.2;stroke-linecap:round}
-    .nav-btn-center span{font-size:10px;letter-spacing:0.06em;text-transform:uppercase;font-family:Georgia,serif;color:#8a7a62}
-    /* Push content up so nav doesn't cover it */
-    #app{padding-bottom:calc(68px + env(safe-area-inset-bottom,0px)) !important}
-
     /* Edit screen */
-    .edit-field-label{font-size:12px;font-weight:bold;letter-spacing:0.1em;text-transform:uppercase;color:#8a7a62;margin-bottom:4px;margin-top:14px;display:block}
+    .edit-label{font-size:12px;font-weight:bold;letter-spacing:0.1em;text-transform:uppercase;color:#8a7a62;margin-bottom:4px;margin-top:14px;display:block}
     .edit-input{width:100%;border:1.5px solid #d6cbb8;border-radius:8px;padding:10px 12px;font-size:16px;outline:none;background:#fff;color:#2c2416;font-family:Georgia,serif;margin-bottom:2px}
     .edit-input:focus{border-color:#c4854a}
-    .edit-row{display:flex;gap:8px;margin-bottom:8px;align-items:flex-start}
+    .edit-row{display:flex;gap:8px;margin-bottom:6px;align-items:flex-start}
     .edit-row .edit-input{margin-bottom:0}
-    .edit-remove-btn{background:none;border:1px solid #d6cbb8;border-radius:6px;padding:10px 10px;color:#8a7a62;font-size:16px;cursor:pointer;flex-shrink:0;line-height:1}
+    .edit-remove-btn{background:none;border:1px solid #d6cbb8;border-radius:6px;padding:10px;color:#8a7a62;font-size:14px;cursor:pointer;flex-shrink:0}
     .edit-add-btn{background:none;border:1px solid #c4854a;border-radius:6px;padding:8px 14px;color:#c4854a;font-size:14px;cursor:pointer;margin-top:4px}
-    .edit-save-btn{flex:1;background:#2c2416;color:#e8d9b8;border:none;border-radius:8px;padding:13px;font-size:17px;cursor:pointer;font-family:Georgia,serif}
-    .edit-cancel-btn{flex:1;background:none;color:#8a7a62;border:1.5px solid #d6cbb8;border-radius:8px;padding:13px;font-size:17px;cursor:pointer;font-family:Georgia,serif}
-    .edit-btn{background:none;border:1px solid rgba(255,255,255,0.3);border-radius:6px;padding:5px 12px;color:rgba(255,255,255,0.7);font-size:13px;cursor:pointer;margin-top:8px}
 
     /* Loading */
     #loading{display:none;position:fixed;inset:0;background:rgba(44,36,22,0.78);flex-direction:column;align-items:center;justify-content:center;z-index:999;gap:18px}
@@ -209,56 +124,86 @@
     .spinner{width:40px;height:40px;border:3px solid #8a7a62;border-top-color:#c4854a;border-radius:50%;animation:spin 0.9s linear infinite}
     #loading-text{font-size:20px;color:#e8d9b8}
 
-    /* Setup */
-    #setup-screen{display:none}
-    #api-key-modal{display:none;position:fixed;inset:0;background:rgba(44,36,22,0.78);z-index:500;align-items:center;justify-content:center;padding:24px}
-    #api-key-modal.show{display:flex}
+    /* Bottom nav */
+    #bottom-nav{position:fixed;bottom:0;left:0;right:0;z-index:190;background:#2c2416;padding-bottom:env(safe-area-inset-bottom,0px);display:flex;align-items:stretch;box-shadow:0 -2px 16px rgba(0,0,0,0.18)}
+    .nav-btn{flex:1;background:none;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:10px 0;gap:4px;color:#8a7a62}
+    .nav-btn svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+    .nav-btn span{font-size:10px;letter-spacing:0.06em;text-transform:uppercase;font-family:Georgia,serif}
+    .nav-btn-center{flex:1.2;background:none;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:8px 0;gap:4px}
+    .nav-plus{width:44px;height:44px;border-radius:50%;background:#c4854a;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 10px rgba(196,133,74,0.5)}
+    .nav-plus svg{width:22px;height:22px;stroke:#fff;fill:none;stroke-width:2.2;stroke-linecap:round}
+    .nav-btn-center span{font-size:10px;letter-spacing:0.06em;text-transform:uppercase;font-family:Georgia,serif;color:#8a7a62}
 
-    /* Metatags in preview/detail body */
-    .meta-tag{background:#ede7d8;color:#5a4e3a;padding:4px 12px;border-radius:20px;font-size:13px;display:inline-block;margin:3px 3px 3px 0}
-    .meta-tag.accent{background:#c4854a;color:#fff}
+    /* Slide-up panels */
+    .slide-panel{position:fixed;bottom:0;left:0;right:0;background:#fff;border-radius:20px 20px 0 0;padding:24px 24px calc(24px + env(safe-area-inset-bottom,0px));z-index:300;box-shadow:0 -4px 24px rgba(0,0,0,0.15);transform:translateY(100%);transition:transform 0.28s ease;max-width:500px;margin:0 auto;max-height:85vh;overflow-y:auto}
+    .slide-panel.open{transform:translateY(0)}
+    .panel-overlay{position:fixed;inset:0;background:rgba(44,36,22,0);z-index:299;pointer-events:none;transition:background 0.28s}
+    .panel-overlay.open{background:rgba(44,36,22,0.45);pointer-events:auto}
+    .panel-title{font-size:20px;font-weight:bold;margin-bottom:16px;color:#2c2416}
+    .panel-close{float:right;background:none;border:none;font-size:22px;cursor:pointer;color:#8a7a62;margin-top:-4px}
+
+    /* Converter */
+    .conv-tabs{display:flex;gap:6px;margin-bottom:16px}
+    .conv-tab{flex:1;padding:8px;border:1px solid #d6cbb8;border-radius:6px;background:transparent;font-size:13px;cursor:pointer;font-family:Georgia,serif;color:#8a7a62}
+    .conv-tab.active{background:#2c2416;color:#e8d9b8;border-color:#2c2416}
+    .conv-row{display:flex;gap:8px;align-items:center;margin-bottom:12px}
+    .conv-input{flex:1;border:1.5px solid #d6cbb8;border-radius:8px;padding:10px 12px;font-size:18px;outline:none;color:#2c2416;font-family:Georgia,serif;min-width:0}
+    .conv-unit{font-size:14px;color:#8a7a62;min-width:40px}
+    .conv-select{width:100%;border:1.5px solid #d6cbb8;border-radius:8px;padding:10px 12px;font-size:15px;outline:none;color:#2c2416;font-family:Georgia,serif;background:#fff;margin-bottom:14px}
+    .conv-result{background:#faf7f2;border-left:3px solid #c4854a;border-radius:0 8px 8px 0;padding:14px 16px;font-size:17px;color:#2c2416;line-height:1.6;min-height:52px}
+    .conv-result span{color:#c4854a;font-weight:bold;font-size:20px}
+    .conv-extra-btn{background:none;border:1px solid #d6cbb8;border-radius:6px;padding:8px 14px;font-size:14px;cursor:pointer;color:#8a7a62;width:100%;margin-bottom:12px;font-family:Georgia,serif}
+
+    /* Backup panel */
+    .backup-section{background:#f5f0e8;border:1.5px solid #d6cbb8;border-radius:8px;padding:14px;margin-bottom:14px}
+    .backup-section h4{font-size:14px;font-weight:bold;color:#2c2416;margin-bottom:6px}
+    .backup-section p{font-size:13px;color:#8a7a62;margin-bottom:10px;line-height:1.5}
+    .backup-btn{width:100%;padding:12px;border:none;border-radius:8px;font-size:15px;cursor:pointer;font-family:Georgia,serif;margin-bottom:6px}
+    .backup-btn-dark{background:#2c2416;color:#e8d9b8}
+    .backup-btn-orange{background:#c4854a;color:#fff}
+    .backup-btn-green{background:#2a6a2a;color:#fff}
+    .backup-btn-outline{background:#fff;color:#2a6a2a;border:1.5px solid #2a6a2a !important}
+    .storage-bar-wrap{margin-bottom:14px}
+    .storage-bar-labels{display:flex;justify-content:space-between;font-size:13px;color:#8a7a62;margin-bottom:5px}
+    .storage-bar-track{background:#e8e0d0;border-radius:4px;height:6px}
+    .storage-bar-fill{height:6px;border-radius:4px;background:#c4854a;transition:width 0.3s}
+    .data-msg{font-size:14px;margin-top:10px;padding:10px 14px;border-radius:6px;display:none}
+    .data-msg.ok{background:#f0faf0;color:#2a6a2a;border:1px solid #a0cca0}
+    .data-msg.err{background:#fdf0e8;color:#8a3a10;border:1px solid #e8b48a}
+
+    /* API key modal */
+    #api-modal{display:none;position:fixed;inset:0;background:rgba(44,36,22,0.78);z-index:500;align-items:center;justify-content:center;padding:24px}
+    #api-modal.show{display:flex}
   </style>
 </head>
 <body>
 
-<!-- LOADING OVERLAY -->
-<div id="loading">
-  <div class="spinner"></div>
-  <div id="loading-text"></div>
-</div>
+<div id="loading"><div class="spinner"></div><div id="loading-text"></div></div>
 
-<!-- SETUP SCREEN (hidden, replaced by modal) -->
-<div id="setup-screen" style="display:none"></div>
-
-<!-- API KEY MODAL -->
-<div id="api-key-modal">
+<div id="api-modal">
   <div style="background:#f5f0e8;border-radius:16px;padding:28px;max-width:360px;width:100%;text-align:center">
     <div style="font-size:38px;margin-bottom:10px">🔑</div>
-    <div style="font-size:21px;font-weight:bold;margin-bottom:10px;font-family:Georgia,serif">API Key needed</div>
+    <div style="font-size:21px;font-weight:bold;margin-bottom:10px">API Key needed</div>
     <div style="font-size:15px;color:#8a7a62;line-height:1.6;margin-bottom:18px">
-      To extract recipes from links and photos, enter your <strong>Anthropic API key</strong>.<br><br>
+      Enter your <strong>Anthropic API key</strong> to extract recipes.<br><br>
       Get one free at <a href="https://console.anthropic.com" target="_blank" style="color:#c4854a">console.anthropic.com</a> → API Keys.
     </div>
-    <input id="api-input" type="password" placeholder="sk-ant-api03-…"
+    <input id="modal-api-input" type="password" placeholder="sk-ant-api03-…"
       style="width:100%;border:1.5px solid #d6cbb8;border-radius:8px;padding:12px 14px;font-size:15px;margin-bottom:12px;outline:none;background:#fff;font-family:Georgia,serif;color:#2c2416"/>
-    <button id="setup-btn" style="width:100%;background:#c4854a;color:#fff;border:none;border-radius:8px;padding:13px;font-size:17px;cursor:pointer;font-family:Georgia,serif;margin-bottom:8px">Save & continue</button>
-    <button id="api-cancel-btn" style="width:100%;background:none;border:none;color:#8a7a62;font-size:14px;cursor:pointer;padding:8px;font-family:Georgia,serif">Cancel</button>
+    <button id="modal-api-save" style="width:100%;background:#c4854a;color:#fff;border:none;border-radius:8px;padding:13px;font-size:17px;cursor:pointer;font-family:Georgia,serif;margin-bottom:8px">Save & continue</button>
+    <button id="modal-api-cancel" style="width:100%;background:none;border:none;color:#8a7a62;font-size:14px;cursor:pointer;padding:8px;font-family:Georgia,serif">Cancel</button>
   </div>
 </div>
 
-<!-- MAIN APP -->
-<div id="app" style="display:none">
-
-  <!-- Header -->
+<div id="app">
   <div id="header">
     <div style="display:flex;align-items:baseline">
       <div id="logo">Jojo's <span>Recipes</span></div>
       <span id="recipe-count"></span>
     </div>
-    <button id="header-btn">+ Add</button>
+    <button id="header-btn">← Back</button>
   </div>
 
-  <!-- LIST SCREEN -->
   <div id="screen-list" class="screen active">
     <div id="search-bar">
       <input id="search-input" placeholder="Search recipes, cuisines…"/>
@@ -271,12 +216,11 @@
     <div id="list-body"></div>
   </div>
 
-  <!-- ADD SCREEN -->
   <div id="screen-add" class="screen">
     <div class="panel">
       <h2>Add a Recipe</h2>
-      <p class="sub">Paste a link from any public recipe site, or upload a photo.<br>
-        <small style="color:#b0a390">Facebook/Instagram won't work — screenshot and use photo instead.</small></p>
+      <p class="sub">Paste a link, upload a photo, or paste recipe text.<br>
+        <small style="color:#b0a390">Facebook/Instagram links won't work — screenshot and use photo instead.</small></p>
       <div class="card">
         <h3>🔗 From a URL</h3>
         <div class="url-row">
@@ -287,22 +231,21 @@
       <div class="card">
         <h3>📷 From a Photo</h3>
         <div class="drop-zone" id="drop-zone">
-          <div class="icon">📸</div>
-          <p>Tap to choose a photo</p>
-          <small>Recipe cards, screenshots, handwritten notes</small>
+          <div style="font-size:32px;margin-bottom:6px">📸</div>
+          <p style="font-size:15px;color:#8a7a62">Tap to choose a photo</p>
+          <small style="font-size:13px;color:#b0a390;margin-top:4px;display:block">Recipe cards, screenshots, handwritten notes</small>
         </div>
         <input id="img-input" type="file" accept="image/*" style="display:none"/>
       </div>
       <div class="card">
-        <h3>📝 Paste a recipe text</h3>
-        <textarea id="text-input" style="width:100%;min-height:120px;border:1.5px solid #d6cbb8;border-radius:8px;padding:10px 12px;font-size:15px;outline:none;color:#2c2416;font-family:Georgia,serif;resize:vertical;line-height:1.6" placeholder="Paste any recipe text here — from an email, a blog post, a WhatsApp message, your own notes…"></textarea>
+        <h3>📝 Paste recipe text</h3>
+        <textarea id="text-input" style="width:100%;min-height:120px;border:1.5px solid #d6cbb8;border-radius:8px;padding:10px 12px;font-size:15px;outline:none;color:#2c2416;font-family:Georgia,serif;resize:vertical;line-height:1.6" placeholder="Paste any recipe text here…"></textarea>
         <button id="text-go-btn" style="margin-top:10px;width:100%;background:#2c2416;color:#e8d9b8;border:none;border-radius:6px;padding:11px;font-size:16px;cursor:pointer;font-family:Georgia,serif">Extract recipe →</button>
       </div>
-      <div id="add-error" style="display:none" class="error-box"></div>
+      <div id="add-error" class="error-box"></div>
     </div>
   </div>
 
-  <!-- PREVIEW SCREEN -->
   <div id="screen-preview" class="screen">
     <div id="preview-banner">✓ Recipe extracted — review before saving</div>
     <div class="panel">
@@ -314,20 +257,21 @@
     </div>
   </div>
 
-  <!-- DETAIL SCREEN -->
   <div id="screen-detail" class="screen">
     <div id="detail-header">
       <div style="display:flex;align-items:flex-start;gap:12px">
         <div style="flex:1">
           <div id="detail-title"></div>
-          <div id="detail-pills"></div>
+          <div id="detail-pills" style="margin-top:10px"></div>
         </div>
-        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px"><button id="mark-btn">Mark as made</button><button id="edit-recipe-btn" class="edit-btn">✏️ Edit</button></div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+          <button id="mark-btn">Mark as made</button>
+          <button id="edit-recipe-btn">✏️ Edit</button>
+        </div>
       </div>
     </div>
     <div class="panel">
       <div id="detail-content"></div>
-      <!-- Photos -->
       <div class="sec-title">My Photos</div>
       <div class="photo-row">
         <div class="photo-slot" id="photo-slot-0"></div>
@@ -335,11 +279,10 @@
       </div>
       <input id="photo-input-0" type="file" accept="image/*" style="display:none"/>
       <input id="photo-input-1" type="file" accept="image/*" style="display:none"/>
-      <!-- My Notes -->
       <div class="sec-title">My Notes</div>
       <div id="notes-view" class="my-notes-view">Tap to add your personal notes…</div>
       <div id="notes-edit" style="display:none">
-        <textarea id="notes-textarea" placeholder="Your tips, changes, how it turned out…"></textarea>
+        <textarea id="notes-textarea" class="notes-textarea" placeholder="Your tips, changes, how it turned out…"></textarea>
         <div class="notes-edit-row">
           <button id="notes-save-btn" class="notes-save-btn">Save</button>
           <button id="notes-cancel-btn" class="notes-cancel-btn">Cancel</button>
@@ -350,1211 +293,720 @@
     </div>
   </div>
 
-
-  <!-- EDIT SCREEN -->
   <div id="screen-edit" class="screen">
     <div class="panel">
       <h2 style="margin-bottom:20px">Edit Recipe</h2>
-      <label class="edit-field-label">Recipe Name</label>
+      <label class="edit-label">Recipe Name</label>
       <input id="edit-name" class="edit-input" type="text"/>
-      <label class="edit-field-label">Cuisine</label>
+      <label class="edit-label">Cuisine</label>
       <input id="edit-cuisine" class="edit-input" type="text" placeholder="Italian, French, Asian…"/>
-      <label class="edit-field-label">Category</label>
+      <label class="edit-label">Category</label>
       <input id="edit-category" class="edit-input" type="text" placeholder="Main, Dessert, Soup…"/>
       <div style="display:flex;gap:10px">
-        <div style="flex:1"><label class="edit-field-label">Servings</label><input id="edit-servings" class="edit-input" type="text"/></div>
-        <div style="flex:1"><label class="edit-field-label">Prep time</label><input id="edit-preptime" class="edit-input" type="text" placeholder="15 min"/></div>
-        <div style="flex:1"><label class="edit-field-label">Cook time</label><input id="edit-cooktime" class="edit-input" type="text" placeholder="30 min"/></div>
+        <div style="flex:1"><label class="edit-label">Servings</label><input id="edit-servings" class="edit-input" type="text"/></div>
+        <div style="flex:1"><label class="edit-label">Prep time</label><input id="edit-preptime" class="edit-input" type="text" placeholder="15 min"/></div>
+        <div style="flex:1"><label class="edit-label">Cook time</label><input id="edit-cooktime" class="edit-input" type="text" placeholder="30 min"/></div>
       </div>
-      <label class="edit-field-label">Ingredients</label>
+      <label class="edit-label">Ingredients</label>
       <div id="edit-ingredients-list"></div>
       <button class="edit-add-btn" id="edit-add-ingredient">+ Add ingredient</button>
-      <label class="edit-field-label">Steps</label>
+      <label class="edit-label">Steps</label>
       <div id="edit-steps-list"></div>
       <button class="edit-add-btn" id="edit-add-step">+ Add step</button>
-      <label class="edit-field-label">Recipe Notes</label>
+      <label class="edit-label">Recipe Notes</label>
       <textarea id="edit-notes" class="edit-input" rows="3" style="resize:vertical"></textarea>
       <div class="confirm-row" style="margin-top:24px">
-        <button id="edit-save-btn" class="edit-save-btn">Save changes</button>
-        <button id="edit-cancel-btn" class="edit-cancel-btn">Cancel</button>
+        <button id="edit-save-btn" class="confirm-btn">Save changes</button>
+        <button id="edit-cancel-btn" class="discard-btn">Cancel</button>
       </div>
     </div>
   </div>
 
-
-
-<div id="data-overlay"></div>
-<div id="data-panel">
-  <div class="conv-title">Backup & Restore <button class="conv-close" id="data-close">×</button></div>
-
-  <!-- API Key section -->
-  <div style="background:#f5f0e8;border:1.5px solid #d6cbb8;border-radius:8px;padding:14px;margin-bottom:16px">
-    <div style="font-size:14px;font-weight:bold;color:#2c2416;margin-bottom:6px">🔑 Anthropic API Key</div>
-    <div style="font-size:13px;color:#8a7a62;margin-bottom:8px">Required for extracting recipes from links, photos and text.</div>
-    <input id="panel-api-input" type="password" placeholder="sk-ant-api03-…"
-      style="width:100%;border:1.5px solid #d6cbb8;border-radius:8px;padding:10px 12px;font-size:15px;margin-bottom:8px;outline:none;background:#fff;font-family:Georgia,serif;color:#2c2416"/>
-    <button id="panel-api-save" style="width:100%;background:#2c2416;color:#e8d9b8;border:none;border-radius:8px;padding:11px;font-size:15px;cursor:pointer;font-family:Georgia,serif">Save API Key</button>
-    <div id="panel-api-status" style="font-size:13px;margin-top:6px;color:#8a7a62;text-align:center"></div>
+  <!-- Bottom nav -->
+  <div id="bottom-nav">
+    <button class="nav-btn" id="nav-converter">
+      <svg viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
+      <span>Convert</span>
+    </button>
+    <button class="nav-btn-center" id="nav-add">
+      <div class="nav-plus"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>
+      <span>Add</span>
+    </button>
+    <button class="nav-btn" id="nav-backup">
+      <svg viewBox="0 0 24 24"><path d="M12 2v10m0 0l-3-3m3 3l3-3"/><rect x="3" y="17" width="18" height="4" rx="1"/></svg>
+      <span>Backup</span>
+    </button>
   </div>
-  <div id="storage-bar-wrap" style="margin-bottom:16px">
-    <div style="display:flex;justify-content:space-between;font-size:13px;color:#8a7a62;margin-bottom:5px">
-      <span>Storage used</span><span id="storage-label"></span>
+
+  <!-- Converter panel -->
+  <div class="panel-overlay" id="conv-overlay"></div>
+  <div class="slide-panel" id="conv-panel">
+    <div class="panel-title">Unit Converter <button class="panel-close" id="conv-close">×</button></div>
+    <div class="conv-tabs">
+      <button class="conv-tab active" data-tab="weight">Cups ↔ Grams</button>
+      <button class="conv-tab" data-tab="temp">Temperature</button>
+      <button class="conv-tab" data-tab="volume">Volume</button>
     </div>
-    <div style="background:#e8e0d0;border-radius:4px;height:6px">
-      <div id="storage-bar" style="height:6px;border-radius:4px;background:#c4854a;transition:width 0.3s"></div>
-    </div>
-    <button id="clear-photos-btn" style="margin-top:10px;width:100%;padding:10px;background:none;border:1px solid #d6cbb8;border-radius:8px;font-size:14px;color:#8a7a62;cursor:pointer;font-family:Georgia,serif">🗜 Re-compress all photos to free space</button>
-  </div>
-
-  <!-- Push to Supabase -->
-  <div style="background:#f0faf5;border:1px solid #a0cca0;border-radius:8px;padding:14px;margin-bottom:14px">
-    <div style="font-size:14px;font-weight:bold;color:#2a6a2a;margin-bottom:6px">☁️ Sync to cloud (recommended)</div>
-    <div style="font-size:13px;color:#5a7a5a;margin-bottom:10px;line-height:1.5">Push all your recipes directly to Supabase. Then open the new app and they will load automatically.</div>
-    <button id="push-to-supabase" style="width:100%;padding:12px;background:#2a6a2a;color:#fff;border:none;border-radius:8px;font-size:15px;cursor:pointer;font-family:Georgia,serif;margin-bottom:8px">Push all recipes to Supabase →</button>
-    <button id="pull-from-supabase" style="width:100%;padding:12px;background:#fff;color:#2a6a2a;border:1.5px solid #2a6a2a;border-radius:8px;font-size:15px;cursor:pointer;font-family:Georgia,serif">← Load recipes from Supabase</button>
-  </div>
-
-  <!-- Manual export/import -->
-  <details style="margin-bottom:4px">
-    <summary style="font-size:14px;color:#8a7a62;cursor:pointer;padding:4px 0">Manual export / import</summary>
-    <div style="margin-top:12px">
-      <button class="data-action-btn data-export-btn" id="do-export" style="margin-bottom:10px">📤 Export — show recipes as text</button>
-      <div id="export-area" style="display:none;margin-bottom:10px">
-        <div style="font-size:13px;color:#8a7a62;margin-bottom:6px">Select all the text below and copy it:</div>
-        <textarea id="export-text" style="width:100%;height:100px;font-size:12px;font-family:monospace;border:1.5px solid #d6cbb8;border-radius:6px;padding:8px;resize:none" readonly></textarea>
+    <div id="conv-tab-weight">
+      <select id="conv-ingredient" class="conv-select"></select>
+      <div class="conv-row">
+        <input id="conv-cups" class="conv-input" type="number" placeholder="0" min="0" step="0.25"/>
+        <span class="conv-unit">cups</span>
+        <span style="color:#c4854a;font-size:18px;padding:0 4px">=</span>
+        <input id="conv-grams" class="conv-input" type="number" placeholder="0" min="0"/>
+        <span class="conv-unit">grams</span>
       </div>
-      <button class="data-action-btn data-import-btn" id="do-import-btn">📥 Import — paste recipes</button>
-      <div id="import-area" style="display:none;margin-top:10px">
-        <div style="font-size:13px;color:#8a7a62;margin-bottom:6px">Long-press below and tap <strong>Paste</strong>:</div>
-        <textarea id="import-paste" style="width:100%;height:80px;border:1.5px solid #d6cbb8;border-radius:8px;padding:10px;font-size:13px;font-family:monospace;resize:none;outline:none" placeholder="Long-press here → Paste"></textarea>
-        <button id="do-import-confirm" style="margin-top:8px;width:100%;padding:12px;background:#c4854a;color:#fff;border:none;border-radius:8px;font-size:16px;cursor:pointer;font-family:Georgia,serif">Import now</button>
+      <button class="conv-extra-btn" id="conv-also-tbsp">Also show tablespoons / ml</button>
+      <div class="conv-result" id="conv-weight-result">Enter a value above to convert.</div>
+    </div>
+    <div id="conv-tab-temp" style="display:none">
+      <div class="conv-row">
+        <input id="conv-celsius" class="conv-input" type="number" placeholder="°C"/>
+        <span class="conv-unit">°C</span>
+        <span style="color:#c4854a;font-size:18px;padding:0 4px">=</span>
+        <input id="conv-fahrenheit" class="conv-input" type="number" placeholder="°F"/>
+        <span class="conv-unit">°F</span>
       </div>
+      <div class="conv-result" id="conv-temp-result">Enter °C or °F to convert.</div>
     </div>
-  </details>
-  <div id="data-msg" class="data-msg"></div>
-</div>
-
-
-
-
-<!-- CONVERTER PANEL -->
-<div id="conv-overlay"></div>
-<div id="conv-panel">
-  <div class="conv-title">Unit Converter <button class="conv-close" id="conv-close">×</button></div>
-  <div class="conv-tabs">
-    <button class="conv-tab active" data-tab="weight">Cups ↔ Grams</button>
-    <button class="conv-tab" data-tab="temp">Temperature</button>
-    <button class="conv-tab" data-tab="volume">Volume</button>
+    <div id="conv-tab-volume" style="display:none">
+      <div class="conv-row">
+        <input id="conv-ml" class="conv-input" type="number" placeholder="ml"/>
+        <span class="conv-unit">ml</span>
+        <span style="color:#c4854a;font-size:18px;padding:0 4px">=</span>
+        <input id="conv-floz" class="conv-input" type="number" placeholder="fl oz"/>
+        <span class="conv-unit">fl oz</span>
+      </div>
+      <div class="conv-result" id="conv-vol-result">Enter ml or fl oz to convert.</div>
+    </div>
   </div>
 
-  <!-- WEIGHT TAB -->
-  <div id="conv-tab-weight">
-    <select id="conv-ingredient" class="conv-select"></select>
-    <div class="conv-row">
-      <input id="conv-cups" class="conv-input" type="number" placeholder="0" min="0" step="0.25"/>
-      <span class="conv-unit">cups</span>
-      <span style="color:#c4854a;font-size:18px;padding:0 4px">=</span>
-      <input id="conv-grams" class="conv-input" type="number" placeholder="0" min="0"/>
-      <span class="conv-unit">grams</span>
+  <!-- Backup panel -->
+  <div class="panel-overlay" id="backup-overlay"></div>
+  <div class="slide-panel" id="backup-panel">
+    <div class="panel-title">Backup & Restore <button class="panel-close" id="backup-close">×</button></div>
+
+    <div class="backup-section">
+      <h4>🔑 Anthropic API Key</h4>
+      <p>Required for extracting recipes from links, photos and text.</p>
+      <input id="panel-api-input" type="password" placeholder="sk-ant-api03-…"
+        style="width:100%;border:1.5px solid #d6cbb8;border-radius:8px;padding:10px 12px;font-size:15px;margin-bottom:8px;outline:none;background:#fff;font-family:Georgia,serif;color:#2c2416"/>
+      <button id="panel-api-save" class="backup-btn backup-btn-dark">Save API Key</button>
+      <div id="panel-api-status" style="font-size:13px;margin-top:4px;text-align:center;color:#8a7a62"></div>
     </div>
-    <button class="conv-swap" id="conv-also-tbsp">Also show tablespoons / ml</button>
-    <div class="conv-result" id="conv-weight-result">Enter a value above to convert.</div>
+
+    <div class="storage-bar-wrap">
+      <div class="storage-bar-labels"><span>Storage used</span><span id="storage-label"></span></div>
+      <div class="storage-bar-track"><div id="storage-bar-fill" class="storage-bar-fill" style="width:0%"></div></div>
+      <button id="recompress-btn" style="margin-top:10px;width:100%;padding:10px;background:none;border:1px solid #d6cbb8;border-radius:8px;font-size:14px;color:#8a7a62;cursor:pointer;font-family:Georgia,serif">🗜 Re-compress photos to free space</button>
+    </div>
+
+    <div class="backup-section" style="background:#f0faf5;border-color:#a0cca0">
+      <h4 style="color:#2a6a2a">☁️ Supabase sync</h4>
+      <p>Push all recipes to cloud or load them from cloud.</p>
+      <button id="push-btn" class="backup-btn backup-btn-green">Push all recipes to Supabase →</button>
+      <button id="pull-btn" class="backup-btn backup-btn-outline" style="background:#fff;color:#2a6a2a;border:1.5px solid #2a6a2a">← Load recipes from Supabase</button>
+    </div>
+
+    <details style="margin-bottom:4px">
+      <summary style="font-size:14px;color:#8a7a62;cursor:pointer;padding:4px 0">Manual export / import</summary>
+      <div style="margin-top:12px">
+        <button id="do-export" class="backup-btn backup-btn-dark" style="margin-bottom:10px">📤 Export — show as text</button>
+        <div id="export-area" style="display:none;margin-bottom:10px">
+          <div style="font-size:13px;color:#8a7a62;margin-bottom:6px">Select all and copy:</div>
+          <textarea id="export-text" style="width:100%;height:100px;font-size:12px;font-family:monospace;border:1.5px solid #d6cbb8;border-radius:6px;padding:8px;resize:none" readonly></textarea>
+        </div>
+        <button id="do-import-btn" class="backup-btn backup-btn-orange">📥 Import — paste recipes</button>
+        <div id="import-area" style="display:none;margin-top:10px">
+          <div style="font-size:13px;color:#8a7a62;margin-bottom:6px">Long-press below and tap <strong>Paste</strong>:</div>
+          <textarea id="import-paste" style="width:100%;height:80px;border:1.5px solid #d6cbb8;border-radius:8px;padding:10px;font-size:13px;font-family:monospace;resize:none;outline:none" placeholder="Long-press here → Paste"></textarea>
+          <button id="do-import-confirm" class="backup-btn backup-btn-orange" style="margin-top:8px">Import now</button>
+        </div>
+      </div>
+    </details>
+    <div id="backup-msg" class="data-msg"></div>
   </div>
-
-  <!-- TEMP TAB -->
-  <div id="conv-tab-temp" style="display:none">
-    <div class="conv-row">
-      <input id="conv-celsius" class="conv-input" type="number" placeholder="°C"/>
-      <span class="conv-unit">°C</span>
-      <span style="color:#c4854a;font-size:18px;padding:0 4px">=</span>
-      <input id="conv-fahrenheit" class="conv-input" type="number" placeholder="°F"/>
-      <span class="conv-unit">°F</span>
-    </div>
-    <div class="conv-result" id="conv-temp-result">Enter °C or °F to convert.</div>
-  </div>
-
-  <!-- VOLUME TAB -->
-  <div id="conv-tab-volume" style="display:none">
-    <div class="conv-row">
-      <input id="conv-ml" class="conv-input" type="number" placeholder="ml"/>
-      <span class="conv-unit">ml</span>
-      <span style="color:#c4854a;font-size:18px;padding:0 4px">=</span>
-      <input id="conv-floz" class="conv-input" type="number" placeholder="fl oz"/>
-      <span class="conv-unit">fl oz</span>
-    </div>
-    <div class="conv-result" id="conv-vol-result">Enter ml or fl oz to convert.</div>
-  </div>
-</div>
-
-
-<!-- BOTTOM NAV -->
-<div id="bottom-nav">
-  <!-- Converter -->
-  <button class="nav-btn" id="nav-converter">
-    <svg viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h18"/><circle cx="7" cy="6" r="1.5" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/><circle cx="17" cy="18" r="1.5" fill="currentColor" stroke="none"/></svg>
-    <span>Convert</span>
-  </button>
-  <!-- Add (center) -->
-  <button class="nav-btn-center" id="nav-add">
-    <div class="nav-plus">
-      <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-    </div>
-    <span>Add</span>
-  </button>
-  <!-- Backup -->
-  <button class="nav-btn" id="nav-backup">
-    <svg viewBox="0 0 24 24"><path d="M12 2L12 14M8 10l4 4 4-4"/><rect x="3" y="17" width="18" height="4" rx="1"/></svg>
-    <span>Backup</span>
-  </button>
-</div>
 
 </div><!-- /app -->
 
 <script>
-// ── State ────────────────────────────────────────────────────────────────────
+// ── Config ────────────────────────────────────────────────────────────────────
 var DB_KEY  = 'jojos-recipes-v1';
 var KEY_KEY = 'jojos-api-key';
+var SB_URL  = 'https://dvtjlaamqgyifkrtjmtb.supabase.co';
+var SB_KEY  = 'sb_publishable_9AXbdN_4od2Yx3Dq9cTyGg_YSwzOJ-v';
 
-// ── Supabase config ──────────────────────────────────────────────────────────
-var SB_URL = 'https://dvtjlaamqgyifkrtjmtb.supabase.co';
-var SB_KEY = 'sb_publishable_9AXbdN_4od2Yx3Dq9cTyGg_YSwzOJ-v';
-
-function sbH() {
-  return { 'Content-Type':'application/json', 'apikey':SB_KEY, 'Authorization':'Bearer '+SB_KEY, 'Prefer':'return=minimal' };
-}
-
-function sbLoad() {
-  return fetch(SB_URL+'/rest/v1/recipes?select=*', { headers:sbH() })
-    .then(function(r){ return r.json(); })
-    .then(function(rows) {
-      if (!Array.isArray(rows)) throw new Error('Bad response');
-      return rows.map(function(row){
-        var r = row.data;
-        if (!r.photos)           r.photos  = [null,null];
-        if (r.done===undefined)  r.done    = false;
-        if (!r.myNotes)          r.myNotes = '';
-        return r;
-      });
-    });
-}
-
-function sbSave(recipe) {
-  // strip large base64 photos before saving to DB — photos go to Storage
-  var clean = Object.assign({}, recipe);
-  clean.photos = (recipe.photos||[null,null]).map(function(p){
-    return (p && p.indexOf('data:')===0) ? null : p; // don't save base64 to DB
-  });
-  return fetch(SB_URL+'/rest/v1/recipes', {
-    method:'POST',
-    headers:Object.assign({},sbH(),{'Prefer':'resolution=merge-duplicates'}),
-    body:JSON.stringify({ id:recipe.id, data:clean, updated_at:new Date().toISOString() })
-  });
-}
-
-function sbDelete(id) {
-  return fetch(SB_URL+'/rest/v1/recipes?id=eq.'+encodeURIComponent(id), {
-    method:'DELETE', headers:sbH()
-  });
-}
-
-function sbUploadPhoto(recipeId, slotIdx, dataUrl) {
-  var arr=dataUrl.split(','), bstr=atob(arr[1]), n=bstr.length, u8=new Uint8Array(n);
-  for(var i=0;i<n;i++) u8[i]=bstr.charCodeAt(i);
-  var blob=new Blob([u8],{type:'image/jpeg'});
-  var path=recipeId+'/'+slotIdx+'.jpg';
-  return fetch(SB_URL+'/storage/v1/object/recipe-photos/'+path, {
-    method:'POST',
-    headers:{ 'apikey':SB_KEY, 'Authorization':'Bearer '+SB_KEY, 'Content-Type':'image/jpeg', 'x-upsert':'true' },
-    body:blob
-  }).then(function(){ return SB_URL+'/storage/v1/object/public/recipe-photos/'+path+'?t='+Date.now(); });
-}
-
-function sbDeletePhoto(recipeId, slotIdx) {
-  return fetch(SB_URL+'/storage/v1/object/recipe-photos', {
-    method:'DELETE',
-    headers:Object.assign({},sbH()),
-    body:JSON.stringify({ prefixes:[recipeId+'/'+slotIdx+'.jpg'] })
-  });
-}
-var apiKey  = '';
-var recipes = [];
-var currentView = 'list';
+// ── State ─────────────────────────────────────────────────────────────────────
+var apiKey      = '';
+var recipes     = [];
 var selectedId  = null;
 var previewRecipe = null;
-var searchText = '';
+var searchText  = '';
 var activeFilter = 'all';
+var pendingAction = null;
+var convTab     = 'weight';
+var showExtra   = false;
 
-// ── Persistence ───────────────────────────────────────────────────────────────
+// ── PWA ───────────────────────────────────────────────────────────────────────
+(function(){
+  var m = {name:"Jojo's Recipes",short_name:"Jojo's Recipes",start_url:"./",display:"standalone",background_color:"#f5f0e8",theme_color:"#2c2416",icons:[{src:"apple-touch-icon.png",sizes:"180x180",type:"image/png",purpose:"any maskable"}]};
+  var b = new Blob([JSON.stringify(m)],{type:"application/json"});
+  var l = document.createElement('link'); l.rel='manifest'; l.href=URL.createObjectURL(b);
+  document.head.appendChild(l);
+  if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function(){});
+})();
+
+// ── Storage ───────────────────────────────────────────────────────────────────
 function loadRecipes() {
   try {
-    var list = JSON.parse(localStorage.getItem(DB_KEY) || '[]');
-    return list.map(function(r) {
-      if (!r.photos)           r.photos  = [null, null];
-      if (r.done === undefined) r.done   = false;
-      if (!r.myNotes)          r.myNotes = '';
+    var list = JSON.parse(localStorage.getItem(DB_KEY)||'[]');
+    return list.map(function(r){
+      if(!r.photos) r.photos=[null,null];
+      if(r.done===undefined) r.done=false;
+      if(!r.myNotes) r.myNotes='';
       return r;
     });
-  } catch(e) { return []; }
+  } catch(e){ return []; }
 }
-
 function saveAll() {
-  var sorted = recipes.slice().sort(function(a,b){ return a.name.localeCompare(b.name); });
+  var sorted = recipes.slice().sort(function(a,b){return a.name.localeCompare(b.name);});
   recipes = sorted;
-  try { localStorage.setItem(DB_KEY, JSON.stringify(sorted)); } catch(e) { alert('Storage full — remove some recipe photos.'); }
+  try { localStorage.setItem(DB_KEY,JSON.stringify(sorted)); } catch(e){}
+  recipes.forEach(function(r){ sbSave(r).catch(function(){}); });
 }
-
 function getSelected() {
-  for (var i=0;i<recipes.length;i++) { if (recipes[i].id === selectedId) return recipes[i]; }
+  for(var i=0;i<recipes.length;i++) if(recipes[i].id===selectedId) return recipes[i];
   return null;
 }
-
 function updateSelected(patch) {
-  for (var i=0;i<recipes.length;i++) {
-    if (recipes[i].id === selectedId) { Object.assign(recipes[i], patch); break; }
+  for(var i=0;i<recipes.length;i++) {
+    if(recipes[i].id===selectedId){ Object.assign(recipes[i],patch); break; }
   }
   saveAll();
 }
 
+// ── Supabase ──────────────────────────────────────────────────────────────────
+function sbH(){ return {'Content-Type':'application/json','apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Prefer':'return=minimal'}; }
+function sbSave(r){
+  var clean = Object.assign({},r);
+  clean.photos=(r.photos||[null,null]).map(function(p){ return (p&&p.indexOf('data:')===0)?null:p; });
+  return fetch(SB_URL+'/rest/v1/recipes',{method:'POST',headers:Object.assign({},sbH(),{'Prefer':'resolution=merge-duplicates'}),body:JSON.stringify({id:r.id,data:clean,updated_at:new Date().toISOString()})});
+}
+function sbLoad(){
+  return fetch(SB_URL+'/rest/v1/recipes?select=*',{headers:sbH()})
+    .then(function(r){return r.json();})
+    .then(function(rows){
+      if(!Array.isArray(rows)) throw new Error('Bad response');
+      return rows.map(function(row){
+        var r=row.data;
+        if(!r.photos) r.photos=[null,null];
+        if(r.done===undefined) r.done=false;
+        if(!r.myNotes) r.myNotes='';
+        return r;
+      });
+    });
+}
+function sbDelete(id){
+  return fetch(SB_URL+'/rest/v1/recipes?id=eq.'+encodeURIComponent(id),{method:'DELETE',headers:sbH()});
+}
+function sbUploadPhoto(recipeId,slotIdx,dataUrl){
+  var arr=dataUrl.split(','),bstr=atob(arr[1]),n=bstr.length,u8=new Uint8Array(n);
+  for(var i=0;i<n;i++) u8[i]=bstr.charCodeAt(i);
+  var blob=new Blob([u8],{type:'image/jpeg'});
+  var path=recipeId+'/'+slotIdx+'.jpg';
+  return fetch(SB_URL+'/storage/v1/object/recipe-photos/'+path,{method:'POST',headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'image/jpeg','x-upsert':'true'},body:blob})
+    .then(function(){ return SB_URL+'/storage/v1/object/public/recipe-photos/'+path+'?t='+Date.now(); });
+}
+
 // ── API ───────────────────────────────────────────────────────────────────────
-var SYSTEM = 'You are a recipe extraction assistant. Return ONLY a valid JSON object, no markdown, no fences. Structure: {"name":"Recipe Name","category":"Main/Dessert/Breakfast/Snack/Soup/Salad","cuisine":"Italian/French/Asian/etc","servings":4,"prepTime":"15 min","cookTime":"30 min","ingredients":["item 1","item 2"],"steps":["First step","Second step"],"notes":"Optional original tips"}';
-
-function callClaude(messages) {
-  return fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-direct-browser-access': 'true'
-    },
-    body: JSON.stringify({ model:'claude-sonnet-4-20250514', max_tokens:1500, system:SYSTEM, messages:messages })
-  }).then(function(r){ return r.json(); }).then(function(data) {
-    if (data.error) throw new Error(data.error.message);
-    var texts = (data.content||[]).filter(function(b){ return b.type==='text'; });
-    if (!texts.length) throw new Error('Empty response');
-    return texts.map(function(b){ return b.text; }).join('');
-  });
+var SYSTEM='You are a recipe extraction assistant. Return ONLY a valid JSON object, no markdown, no fences. Structure: {"name":"Recipe Name","category":"Main/Dessert/Breakfast/Snack/Soup/Salad","cuisine":"Italian/French/Asian/etc","servings":4,"prepTime":"15 min","cookTime":"30 min","ingredients":["item 1","item 2"],"steps":["First step","Second step"],"notes":"Optional original tips"}';
+function callClaude(messages){
+  return fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1500,system:SYSTEM,messages:messages})})
+    .then(function(r){return r.json();})
+    .then(function(data){
+      if(data.error) throw new Error(data.error.message);
+      var texts=(data.content||[]).filter(function(b){return b.type==='text';});
+      if(!texts.length) throw new Error('Empty response');
+      return texts.map(function(b){return b.text;}).join('');
+    });
 }
-
-function extractFromURL(url) {
-  return fetch('https://r.jina.ai/' + url, { headers:{'Accept':'text/plain'} })
-    .then(function(r){ if(!r.ok) throw new Error('Cannot fetch'); return r.text(); })
-    .then(function(txt) {
-      return callClaude([{role:'user', content:'Extract the recipe from this webpage:\n\n'+txt.slice(0,12000)}]);
-    }).then(function(raw){ return JSON.parse(raw.replace(/```json|```/g,'').trim()); });
+function extractFromURL(url){
+  return fetch('https://r.jina.ai/'+url,{headers:{'Accept':'text/plain'}})
+    .then(function(r){if(!r.ok) throw new Error('Cannot fetch');return r.text();})
+    .then(function(txt){return callClaude([{role:'user',content:'Extract the recipe from this webpage:\n\n'+txt.slice(0,12000)}]);})
+    .then(function(raw){return JSON.parse(raw.replace(/```json|```/g,'').trim());});
 }
-
-function extractFromImage(b64, mime) {
-  return callClaude([{role:'user', content:[
-    {type:'image', source:{type:'base64', media_type:mime, data:b64}},
-    {type:'text', text:'Extract the recipe from this image.'}
-  ]}]).then(function(raw){ return JSON.parse(raw.replace(/```json|```/g,'').trim()); });
+function extractFromImage(b64,mime){
+  return callClaude([{role:'user',content:[{type:'image',source:{type:'base64',media_type:mime,data:b64}},{type:'text',text:'Extract the recipe from this image.'}]}])
+    .then(function(raw){return JSON.parse(raw.replace(/```json|```/g,'').trim());});
 }
-
-function compressImage(file) {
-  return new Promise(function(res, rej) {
-    var fr = new FileReader();
-    fr.onload = function(ev) {
-      var img = new Image();
-      img.onload = function() {
-        var MAX=800, w=img.width, h=img.height;
-        if(w>h){if(w>MAX){h=Math.round(h*MAX/w);w=MAX;}}else{if(h>MAX){w=Math.round(w*MAX/h);h=MAX;}}
-        var c=document.createElement('canvas'); c.width=w; c.height=h;
-        c.getContext('2d').drawImage(img,0,0,w,h);
-        res(c.toDataURL('image/jpeg',0.72));
-      };
-      img.onerror=rej; img.src=ev.target.result;
-    };
-    fr.onerror=rej; fr.readAsDataURL(file);
-  });
+function requireApiKey(fn){
+  if(apiKey){ fn(); return; }
+  pendingAction=fn;
+  document.getElementById('api-modal').className='show';
+  document.getElementById('modal-api-input').focus();
 }
 
 // ── Loading ───────────────────────────────────────────────────────────────────
-function showLoading(msg) {
-  document.getElementById('loading').className = 'show';
-  document.getElementById('loading-text').textContent = msg;
-}
-function hideLoading() { document.getElementById('loading').className = ''; }
+function showLoading(msg){ document.getElementById('loading').className='show'; document.getElementById('loading-text').textContent=msg; }
+function hideLoading(){ document.getElementById('loading').className=''; }
 
 // ── Navigation ────────────────────────────────────────────────────────────────
-function showScreen(name) {
-  currentView = name;
-  var screens = document.querySelectorAll('.screen');
-  for (var i=0;i<screens.length;i++) screens[i].className = 'screen';
-  document.getElementById('screen-'+name).className = 'screen active';
-
-  var headerBtn = document.getElementById('header-btn');
-  if (name === 'list') {
-    headerBtn.style.display = 'none';
+function showScreen(name){
+  var screens=document.querySelectorAll('.screen');
+  for(var i=0;i<screens.length;i++) screens[i].className='screen';
+  document.getElementById('screen-'+name).className='screen active';
+  var btn=document.getElementById('header-btn');
+  var badge=document.getElementById('recipe-count');
+  if(name==='list'){
+    btn.style.display='none';
+    if(recipes.length>0){badge.textContent=recipes.length;badge.style.display='inline';}
+    else badge.style.display='none';
     renderList();
   } else {
-    headerBtn.style.display = 'block';
-    headerBtn.textContent = '← Back';
-    headerBtn.onclick = function(){ showScreen('list'); previewRecipe = null; };
-  }
-
-  // Count badge
-  var badge = document.getElementById('recipe-count');
-  if (name === 'list' && recipes.length > 0) {
-    badge.textContent = recipes.length;
-    badge.style.display = 'inline';
-  } else {
-    badge.style.display = 'none';
+    btn.style.display='block';
+    badge.style.display='none';
   }
 }
 
 // ── Render list ───────────────────────────────────────────────────────────────
-function renderList() {
-  var q = searchText.toLowerCase();
-  var filtered = recipes.filter(function(r) {
-    var mq = r.name.toLowerCase().indexOf(q)>-1 || (r.cuisine||'').toLowerCase().indexOf(q)>-1 || (r.category||'').toLowerCase().indexOf(q)>-1;
-    var mf = activeFilter==='all' || (activeFilter==='done'&&r.done) || (activeFilter==='todo'&&!r.done);
-    return mq && mf;
+function renderList(){
+  var q=searchText.toLowerCase();
+  var filtered=recipes.filter(function(r){
+    var mq=r.name.toLowerCase().indexOf(q)>-1||(r.cuisine||'').toLowerCase().indexOf(q)>-1||(r.category||'').toLowerCase().indexOf(q)>-1;
+    var mf=activeFilter==='all'||(activeFilter==='done'&&r.done)||(activeFilter==='todo'&&!r.done);
+    return mq&&mf;
   });
-
-  var doneCount = recipes.filter(function(r){ return r.done; }).length;
-  var filterBtns = document.querySelectorAll('.filter-btn');
-  filterBtns[0].textContent = 'All ('+recipes.length+')';
-  filterBtns[1].textContent = 'To try ('+(recipes.length-doneCount)+')';
-  filterBtns[2].textContent = '✓ Made ('+doneCount+')';
-  for (var fi=0;fi<filterBtns.length;fi++) {
-    filterBtns[fi].className = 'filter-btn' + (filterBtns[fi].dataset.filter===activeFilter?' active':'');
-  }
-
-  // Update count badge
-  var badge = document.getElementById('recipe-count');
-  if (recipes.length > 0) { badge.textContent = recipes.length; badge.style.display='inline'; }
-  else badge.style.display='none';
-
-  var body = document.getElementById('list-body');
-  body.innerHTML = '';
-
-  if (recipes.length === 0) {
-    body.innerHTML = '<div class="empty-state"><div class="icon">📖</div><h2>Your recipe book is empty</h2><p>Tap <strong>+ Add</strong> to get started.</p></div>';
-    return;
-  }
-  if (filtered.length === 0) {
-    body.innerHTML = '<div class="empty-state"><div class="icon">🔍</div><h2>No matches</h2></div>';
-    return;
-  }
-
-  var grouped = {};
-  filtered.forEach(function(r) {
-    var l = (r.name[0]||'#').toUpperCase();
-    if (!grouped[l]) grouped[l] = [];
-    grouped[l].push(r);
-  });
-  var letters = Object.keys(grouped).sort();
-
-  letters.forEach(function(l) {
-    var lh = document.createElement('div');
-    lh.className = 'letter-head'; lh.textContent = l;
-    body.appendChild(lh);
-
-    grouped[l].forEach(function(r) {
-      var row = document.createElement('div');
-      row.className = 'recipe-row';
-
-      var doneBtn = document.createElement('button');
-      doneBtn.className = 'done-btn' + (r.done?' done':'');
-      doneBtn.textContent = r.done ? '✓' : '';
-      doneBtn.onclick = function(ev) {
-        ev.stopPropagation();
-        r.done = !r.done; saveAll(); renderList();
-      };
-
-      var info = document.createElement('div');
-      info.className = 'row-info';
-      info.onclick = function(){ selectedId = r.id; showScreen('detail'); renderDetail(); };
-
-      var name = document.createElement('div');
-      name.className = 'row-name' + (r.done?' done':'');
-      name.textContent = r.name;
-
-      var meta = document.createElement('div');
-      meta.className = 'row-meta';
-      meta.textContent = [r.cuisine, r.category].filter(Boolean).join(' · ');
-
-      info.appendChild(name);
-      if (r.cuisine || r.category) info.appendChild(meta);
-
-      var arrow = document.createElement('div');
-      arrow.className = 'row-arrow'; arrow.textContent = '›';
-      arrow.onclick = function(){ selectedId = r.id; showScreen('detail'); renderDetail(); };
-
-      row.appendChild(doneBtn); row.appendChild(info); row.appendChild(arrow);
-      body.appendChild(row);
+  var doneCount=recipes.filter(function(r){return r.done;}).length;
+  var btns=document.querySelectorAll('.filter-btn');
+  btns[0].textContent='All ('+recipes.length+')';
+  btns[1].textContent='To try ('+(recipes.length-doneCount)+')';
+  btns[2].textContent='✓ Made ('+doneCount+')';
+  for(var fi=0;fi<btns.length;fi++) btns[fi].className='filter-btn'+(btns[fi].dataset.filter===activeFilter?' active':'');
+  var badge=document.getElementById('recipe-count');
+  if(recipes.length>0){badge.textContent=recipes.length;badge.style.display='inline';} else badge.style.display='none';
+  var body=document.getElementById('list-body'); body.innerHTML='';
+  if(recipes.length===0){body.innerHTML='<div class="empty-state"><div class="icon">📖</div><h2>Your recipe book is empty</h2><p>Tap <strong>+</strong> to get started.</p></div>';return;}
+  if(filtered.length===0){body.innerHTML='<div class="empty-state"><div class="icon">🔍</div><h2>No matches</h2></div>';return;}
+  var grouped={};
+  filtered.forEach(function(r){var l=(r.name[0]||'#').toUpperCase();if(!grouped[l])grouped[l]=[];grouped[l].push(r);});
+  Object.keys(grouped).sort().forEach(function(l){
+    var lh=document.createElement('div'); lh.className='letter-head'; lh.textContent=l; body.appendChild(lh);
+    grouped[l].forEach(function(r){
+      var row=document.createElement('div'); row.className='recipe-row';
+      var db=document.createElement('button'); db.className='done-btn'+(r.done?' done':''); db.textContent=r.done?'✓':'';
+      db.onclick=function(ev){ev.stopPropagation();r.done=!r.done;saveAll();renderList();};
+      var info=document.createElement('div'); info.className='row-info';
+      info.onclick=function(){selectedId=r.id;showScreen('detail');renderDetail();};
+      var nm=document.createElement('div'); nm.className='row-name'; nm.textContent=r.name;
+      var mt=document.createElement('div'); mt.className='row-meta'; mt.textContent=[r.cuisine,r.category].filter(Boolean).join(' · ');
+      info.appendChild(nm); if(r.cuisine||r.category) info.appendChild(mt);
+      var ar=document.createElement('div'); ar.className='row-arrow'; ar.textContent='›';
+      ar.onclick=function(){selectedId=r.id;showScreen('detail');renderDetail();};
+      row.appendChild(db); row.appendChild(info); row.appendChild(ar); body.appendChild(row);
     });
   });
 }
 
-// ── Render recipe content ─────────────────────────────────────────────────────
-function buildRecipeHTML(r) {
-  var html = '';
-  if (r.ingredients && r.ingredients.length) {
-    html += '<div class="sec-title">Ingredients</div>';
-    r.ingredients.forEach(function(ing) {
-      html += '<div class="ing-row"><span class="ing-dot">·</span><span>'+escHtml(ing)+'</span></div>';
-    });
+// ── Recipe HTML ───────────────────────────────────────────────────────────────
+function escH(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function buildRecipeHTML(r){
+  var html='';
+  if(r.ingredients&&r.ingredients.length){
+    html+='<div class="sec-title">Ingredients</div>';
+    r.ingredients.forEach(function(ing){html+='<div class="ing-row"><span style="color:#c4854a;font-size:20px;line-height:1.1;flex-shrink:0">·</span><span>'+escH(ing)+'</span></div>';});
   }
-  if (r.steps && r.steps.length) {
-    html += '<div class="sec-title">Preparation</div>';
-    r.steps.forEach(function(step, i) {
-      var text = step.replace(/^Step\s*\d+[:.]\s*/i,'');
-      html += '<div class="step-row"><span class="step-num">'+(i+1)+'</span><span class="step-text">'+escHtml(text)+'</span></div>';
-    });
+  if(r.steps&&r.steps.length){
+    html+='<div class="sec-title">Preparation</div>';
+    r.steps.forEach(function(step,i){html+='<div class="step-row"><span class="step-num">'+(i+1)+'</span><span style="line-height:1.7">'+escH(step.replace(/^Step\s*\d+[:.]\s*/i,''))+'</span></div>';});
   }
-  if (r.notes) {
-    html += '<div class="sec-title">Recipe Notes</div><div class="notes-box">'+escHtml(r.notes)+'</div>';
-  }
+  if(r.notes) html+='<div class="sec-title">Recipe Notes</div><div class="notes-box">'+escH(r.notes)+'</div>';
   return html;
 }
-
-function buildMetaTags(r, pillClass) {
-  var tags = '';
-  var pc = pillClass || 'meta-tag';
-  if (r.cuisine)  tags += '<span class="'+pc+' accent">'+escHtml(r.cuisine)+'</span>';
-  if (r.category) tags += '<span class="'+pc+'">'+escHtml(r.category)+'</span>';
-  if (r.servings) tags += '<span class="'+pc+'">🍽 '+r.servings+' servings</span>';
-  if (r.prepTime) tags += '<span class="'+pc+'">⏱ '+escHtml(r.prepTime)+'</span>';
-  if (r.cookTime) tags += '<span class="'+pc+'">🔥 '+escHtml(r.cookTime)+'</span>';
-  return tags;
-}
-
-function escHtml(s) {
-  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+function buildMetaTags(r,cls){
+  var t='',c=cls||'meta-tag';
+  if(r.cuisine) t+='<span class="'+c+' accent">'+escH(r.cuisine)+'</span>';
+  if(r.category) t+='<span class="'+c+'">'+escH(r.category)+'</span>';
+  if(r.servings) t+='<span class="'+c+'">🍽 '+r.servings+' servings</span>';
+  if(r.prepTime) t+='<span class="'+c+'">⏱ '+escH(r.prepTime)+'</span>';
+  if(r.cookTime) t+='<span class="'+c+'">🔥 '+escH(r.cookTime)+'</span>';
+  return t;
 }
 
 // ── Preview ───────────────────────────────────────────────────────────────────
-function renderPreview() {
-  var r = previewRecipe;
-  var html = '<div style="font-size:24px;font-weight:bold;margin-bottom:8px">'+escHtml(r.name)+'</div>';
-  html += '<div style="margin-bottom:16px">'+buildMetaTags(r)+'</div>';
-  html += buildRecipeHTML(r);
-  document.getElementById('preview-content').innerHTML = html;
+function renderPreview(){
+  var r=previewRecipe;
+  document.getElementById('preview-content').innerHTML='<div style="font-size:24px;font-weight:bold;margin-bottom:8px">'+escH(r.name)+'</div><div style="margin-bottom:16px">'+buildMetaTags(r)+'</div>'+buildRecipeHTML(r);
 }
 
 // ── Detail ────────────────────────────────────────────────────────────────────
-function renderDetail() {
-  var r = getSelected(); if (!r) return;
-
-  document.getElementById('detail-title').textContent = r.name;
-  document.getElementById('detail-pills').innerHTML = buildMetaTags(r, 'pill');
-
-  var markBtn = document.getElementById('mark-btn');
-  markBtn.textContent = r.done ? '✓ Made it' : 'Mark as made';
-  markBtn.className = r.done ? 'done' : '';
-  markBtn.onclick = function() {
-    r.done = !r.done; saveAll();
-    markBtn.textContent = r.done ? '✓ Made it' : 'Mark as made';
-    markBtn.className = r.done ? 'done' : '';
-    renderList();
-  };
-
-  document.getElementById('detail-content').innerHTML = buildRecipeHTML(r);
-
-  // Source
-  var srcEl = document.getElementById('detail-source');
-  if (r.source && r.source !== 'Photo') {
-    srcEl.innerHTML = '<div class="source-link">Source: <a href="'+escHtml(r.source)+'" target="_blank">'+escHtml(r.source)+'</a></div>';
-  } else { srcEl.innerHTML = ''; }
-
-  // Photos
-  renderPhotoSlot(0, r);
-  renderPhotoSlot(1, r);
-
-  // Notes
+function renderDetail(){
+  var r=getSelected(); if(!r) return;
+  document.getElementById('detail-title').textContent=r.name;
+  document.getElementById('detail-pills').innerHTML=buildMetaTags(r,'pill');
+  var mb=document.getElementById('mark-btn'); mb.textContent=r.done?'✓ Made it':'Mark as made'; mb.className=r.done?'done':'';
+  mb.onclick=function(){r.done=!r.done;saveAll();mb.textContent=r.done?'✓ Made it':'Mark as made';mb.className=r.done?'done':'';renderList();};
+  document.getElementById('edit-recipe-btn').onclick=function(){renderEdit();showScreen('edit');};
+  document.getElementById('detail-content').innerHTML=buildRecipeHTML(r);
+  var src=document.getElementById('detail-source');
+  src.innerHTML=r.source&&r.source!=='Photo'?'<div class="source-link">Source: <a href="'+escH(r.source)+'" target="_blank">'+escH(r.source)+'</a></div>':'';
+  renderPhotoSlot(0,r); renderPhotoSlot(1,r);
   renderNotesView(r);
-
-  // Delete
-  document.getElementById('edit-recipe-btn').onclick = function() {
-    showScreen('edit'); renderEdit();
-  };
-
-  document.getElementById('delete-btn').onclick = function() {
-    if (!confirm('Remove "'+r.name+'" from your book?')) return;
-    var rid = r.id;
-    recipes = recipes.filter(function(x){ return x.id !== rid; });
-    saveAll();
-    sbDelete(rid).catch(function(){});
-    showScreen('list');
+  document.getElementById('delete-btn').onclick=function(){
+    if(!confirm('Remove "'+r.name+'" from your book?')) return;
+    var rid=r.id; recipes=recipes.filter(function(x){return x.id!==rid;}); saveAll(); sbDelete(rid).catch(function(){}); showScreen('list');
   };
 }
-
-function renderPhotoSlot(idx, r) {
-  var slot = document.getElementById('photo-slot-'+idx);
-  var photos = r.photos || [null, null];
-  slot.innerHTML = '';
-  if (photos[idx]) {
-    var img = document.createElement('img');
-    img.src = photos[idx]; img.alt = 'Recipe photo';
-    var removeBtn = document.createElement('button');
-    removeBtn.className = 'photo-remove'; removeBtn.textContent = '✕';
-    removeBtn.onclick = function() {
-      var p = r.photos.slice(); p[idx]=null;
-      updateSelected({photos:p}); renderPhotoSlot(idx, getSelected());
-    };
-    slot.appendChild(img); slot.appendChild(removeBtn);
+function renderPhotoSlot(idx,r){
+  var slot=document.getElementById('photo-slot-'+idx); slot.innerHTML='';
+  var photos=r.photos||[null,null];
+  if(photos[idx]){
+    var img=document.createElement('img'); img.src=photos[idx]; img.alt='Recipe photo';
+    var rb=document.createElement('button'); rb.className='photo-remove'; rb.textContent='✕';
+    rb.onclick=function(){var p=r.photos.slice();p[idx]=null;updateSelected({photos:p});renderPhotoSlot(idx,getSelected());};
+    slot.appendChild(img); slot.appendChild(rb);
   } else {
-    var ph = document.createElement('div');
-    ph.className = 'photo-placeholder';
-    ph.innerHTML = '<span>📷</span><p>Add photo</p>';
-    ph.onclick = function(){ document.getElementById('photo-input-'+idx).click(); };
+    var ph=document.createElement('div'); ph.className='photo-placeholder';
+    ph.innerHTML='<span>📷</span><p>Add photo</p>';
+    ph.onclick=function(){document.getElementById('photo-input-'+idx).click();};
     slot.appendChild(ph);
   }
 }
-
-function renderNotesView(r) {
-  var view = document.getElementById('notes-view');
-  var edit = document.getElementById('notes-edit');
-  edit.style.display = 'none';
-  view.style.display = 'block';
-  if (r.myNotes) {
-    view.textContent = r.myNotes;
-    view.className = 'my-notes-view has-notes';
-  } else {
-    view.textContent = 'Tap to add your personal notes…';
-    view.className = 'my-notes-view';
-  }
-  view.onclick = function() {
-    view.style.display = 'none'; edit.style.display = 'block';
-    document.getElementById('notes-textarea').value = r.myNotes || '';
-  };
-  document.getElementById('notes-save-btn').onclick = function() {
-    var val = document.getElementById('notes-textarea').value;
-    updateSelected({myNotes:val});
-    renderNotesView(getSelected());
-  };
-  document.getElementById('notes-cancel-btn').onclick = function() {
-    edit.style.display='none'; view.style.display='block';
-  };
+function renderNotesView(r){
+  var view=document.getElementById('notes-view'); var edit=document.getElementById('notes-edit');
+  edit.style.display='none'; view.style.display='block';
+  view.textContent=r.myNotes||'Tap to add your personal notes…';
+  view.className=r.myNotes?'my-notes-view has-notes':'my-notes-view';
+  view.onclick=function(){view.style.display='none';edit.style.display='block';document.getElementById('notes-textarea').value=r.myNotes||'';};
+  document.getElementById('notes-save-btn').onclick=function(){var v=document.getElementById('notes-textarea').value;updateSelected({myNotes:v});renderNotesView(getSelected());};
+  document.getElementById('notes-cancel-btn').onclick=function(){edit.style.display='none';view.style.display='block';};
 }
 
-
-// ── Edit recipe ───────────────────────────────────────────────────────────────
-function renderEdit() {
-  var r = getSelected(); if (!r) return;
-  document.getElementById('edit-name').value     = r.name     || '';
-  document.getElementById('edit-cuisine').value  = r.cuisine  || '';
-  document.getElementById('edit-category').value = r.category || '';
-  document.getElementById('edit-servings').value = r.servings || '';
-  document.getElementById('edit-preptime').value = r.prepTime || '';
-  document.getElementById('edit-cooktime').value = r.cookTime || '';
-  document.getElementById('edit-notes').value    = r.notes    || '';
-
-  // Ingredients
-  var ingList = document.getElementById('edit-ingredients-list');
-  ingList.innerHTML = '';
-  (r.ingredients || []).forEach(function(ing, i) { addIngredientRow(ing); });
-
-  // Steps
-  var stepList = document.getElementById('edit-steps-list');
-  stepList.innerHTML = '';
-  (r.steps || []).forEach(function(step) { addStepRow(step); });
-
-  document.getElementById('edit-add-ingredient').onclick = function() { addIngredientRow(''); };
-  document.getElementById('edit-add-step').onclick       = function() { addStepRow(''); };
-
-  document.getElementById('edit-save-btn').onclick = function() {
-    var ings  = Array.from(document.querySelectorAll('.edit-ing-input')).map(function(i){ return i.value.trim(); }).filter(Boolean);
-    var steps = Array.from(document.querySelectorAll('.edit-step-input')).map(function(i){ return i.value.trim(); }).filter(Boolean);
-    updateSelected({
-      name:        document.getElementById('edit-name').value.trim()     || r.name,
-      cuisine:     document.getElementById('edit-cuisine').value.trim(),
-      category:    document.getElementById('edit-category').value.trim(),
-      servings:    document.getElementById('edit-servings').value.trim(),
-      prepTime:    document.getElementById('edit-preptime').value.trim(),
-      cookTime:    document.getElementById('edit-cooktime').value.trim(),
-      notes:       document.getElementById('edit-notes').value.trim(),
-      ingredients: ings,
-      steps:       steps
-    });
-    saveAll();
+// ── Edit ──────────────────────────────────────────────────────────────────────
+function renderEdit(){
+  var r=getSelected(); if(!r) return;
+  document.getElementById('edit-name').value=r.name||'';
+  document.getElementById('edit-cuisine').value=r.cuisine||'';
+  document.getElementById('edit-category').value=r.category||'';
+  document.getElementById('edit-servings').value=r.servings||'';
+  document.getElementById('edit-preptime').value=r.prepTime||'';
+  document.getElementById('edit-cooktime').value=r.cookTime||'';
+  document.getElementById('edit-notes').value=r.notes||'';
+  var il=document.getElementById('edit-ingredients-list'); il.innerHTML='';
+  (r.ingredients||[]).forEach(function(ing){addIngRow(ing);});
+  var sl=document.getElementById('edit-steps-list'); sl.innerHTML='';
+  (r.steps||[]).forEach(function(step){addStepRow(step);});
+  document.getElementById('edit-add-ingredient').onclick=function(){addIngRow('');};
+  document.getElementById('edit-add-step').onclick=function(){addStepRow('');};
+  document.getElementById('edit-save-btn').onclick=function(){
+    var ings=Array.from(document.querySelectorAll('.edit-ing-input')).map(function(i){return i.value.trim();}).filter(Boolean);
+    var steps=Array.from(document.querySelectorAll('.edit-step-input')).map(function(i){return i.value.trim();}).filter(Boolean);
+    updateSelected({name:document.getElementById('edit-name').value.trim()||r.name,cuisine:document.getElementById('edit-cuisine').value.trim(),category:document.getElementById('edit-category').value.trim(),servings:document.getElementById('edit-servings').value.trim(),prepTime:document.getElementById('edit-preptime').value.trim(),cookTime:document.getElementById('edit-cooktime').value.trim(),notes:document.getElementById('edit-notes').value.trim(),ingredients:ings,steps:steps});
     showScreen('detail'); renderDetail();
   };
-  document.getElementById('edit-cancel-btn').onclick = function() {
-    showScreen('detail'); renderDetail();
-  };
+  document.getElementById('edit-cancel-btn').onclick=function(){showScreen('detail');renderDetail();};
 }
-
-function addIngredientRow(value) {
-  var list = document.getElementById('edit-ingredients-list');
-  var row  = document.createElement('div'); row.className = 'edit-row';
-  var inp  = document.createElement('input'); inp.type='text'; inp.className='edit-input edit-ing-input'; inp.value=value; inp.placeholder='e.g. 200g flour';
-  var btn  = document.createElement('button'); btn.className='edit-remove-btn'; btn.textContent='✕'; btn.type='button';
-  btn.onclick = function() { list.removeChild(row); };
+function addIngRow(val){
+  var list=document.getElementById('edit-ingredients-list');
+  var row=document.createElement('div'); row.className='edit-row';
+  var inp=document.createElement('input'); inp.type='text'; inp.className='edit-input edit-ing-input'; inp.value=val; inp.placeholder='e.g. 200g flour';
+  var btn=document.createElement('button'); btn.className='edit-remove-btn'; btn.textContent='✕'; btn.type='button';
+  btn.onclick=function(){list.removeChild(row);};
   row.appendChild(inp); row.appendChild(btn); list.appendChild(row);
-  inp.focus();
 }
-
-function addStepRow(value) {
-  var list = document.getElementById('edit-steps-list');
-  var idx  = list.children.length + 1;
-  var row  = document.createElement('div'); row.className = 'edit-row'; row.style.alignItems='flex-start';
-  var num  = document.createElement('span'); num.textContent=idx; num.style.cssText='padding:10px 4px;color:#c4854a;font-weight:bold;font-size:16px;flex-shrink:0;min-width:20px';
-  var inp  = document.createElement('textarea'); inp.className='edit-input edit-step-input'; inp.value=value; inp.placeholder='Describe this step…'; inp.rows=2; inp.style.resize='vertical';
-  var btn  = document.createElement('button'); btn.className='edit-remove-btn'; btn.textContent='✕'; btn.type='button';
-  btn.onclick = function() { list.removeChild(row); };
+function addStepRow(val){
+  var list=document.getElementById('edit-steps-list');
+  var idx=list.children.length+1;
+  var row=document.createElement('div'); row.className='edit-row';
+  var num=document.createElement('span'); num.textContent=idx; num.style.cssText='padding:10px 4px;color:#c4854a;font-weight:bold;font-size:16px;flex-shrink:0;min-width:20px';
+  var inp=document.createElement('textarea'); inp.className='edit-input edit-step-input'; inp.value=val; inp.placeholder='Describe this step…'; inp.rows=2; inp.style.resize='vertical';
+  var btn=document.createElement('button'); btn.className='edit-remove-btn'; btn.textContent='✕'; btn.type='button';
+  btn.onclick=function(){list.removeChild(row);};
   row.appendChild(num); row.appendChild(inp); row.appendChild(btn); list.appendChild(row);
-  inp.focus();
 }
 
-// ── Setup + event wiring ──────────────────────────────────────────────────────
-function init() {
-  // Always open the app — API key only asked when adding a recipe
-  apiKey = localStorage.getItem(KEY_KEY) || '';
-  recipes = loadRecipes();
-  document.getElementById('setup-screen').style.display = 'none';
-  document.getElementById('app').style.display = 'block';
-  showScreen('list');
-  if (true) {
-    // Then sync from Supabase in background
-    sbLoad().then(function(sbRecipes) {
-      if (sbRecipes.length > 0) {
-        // Merge: Supabase is source of truth for recipe data,
-        // but preserve local photos (base64) if Supabase has none
-        var localById = {};
-        recipes.forEach(function(r){ localById[r.id]=r; });
-        recipes = sbRecipes.map(function(r) {
-          var local = localById[r.id];
-          if (local) {
-            // Keep local base64 photos if cloud has null
-            r.photos = (r.photos||[null,null]).map(function(p,i){
-              return p || (local.photos&&local.photos[i])||null;
-            });
-          }
-          return r;
-        });
-        // Add any local-only recipes not yet in Supabase
-        sbRecipes.forEach(function(r){ localById[r.id]=true; });
-        var localOnly = Object.keys(localById).filter(function(id){ return localById[id]!==true; });
-        localOnly.forEach(function(id){
-          var r = localById[id];
-          if (r && r.id) { recipes.push(r); sbSave(r).catch(function(){}); }
-        });
-        saveRecipes(recipes);
-        renderList();
-      } else {
-        // Supabase empty — push all local recipes up
-        recipes.forEach(function(r){ sbSave(r).catch(function(){}); });
-      }
-    }).catch(function(){ /* offline or setup not done yet */ });
-
-  // Keep-alive ping — upserts a heartbeat row so Supabase counts it as real activity
-  fetch(SB_URL+'/rest/v1/heartbeat', {
-    method:'POST',
-    headers:Object.assign({},sbH(),{'Prefer':'resolution=merge-duplicates'}),
-    body:JSON.stringify({id:'ping', ts:new Date().toISOString()})
-  }).catch(function(){
-    // heartbeat table may not exist yet — fall back to a read
-    fetch(SB_URL+'/rest/v1/recipes?limit=1', { headers:sbH() }).catch(function(){});
-  });
-  }
-
-  var pendingAction = null;
-  function requireApiKey(fn) {
-    if (apiKey) { fn(); return; }
-    pendingAction = fn;
-    document.getElementById('api-key-modal').className = 'show';
-    document.getElementById('api-input').focus();
-  }
-  document.getElementById('setup-btn').onclick = function() {
-    var k = document.getElementById('api-input').value.trim();
-    if (!k) return;
-    localStorage.setItem(KEY_KEY, k); apiKey = k;
-    document.getElementById('api-key-modal').className = '';
-    if (pendingAction) { var fn = pendingAction; pendingAction = null; fn(); }
-  };
-  document.getElementById('api-cancel-btn').onclick = function() {
-    document.getElementById('api-key-modal').className = '';
-    pendingAction = null;
-  };
-  document.getElementById('api-input').onkeydown = function(ev){ if(ev.key==='Enter') document.getElementById('setup-btn').click(); };
-
-  // Search
-  document.getElementById('search-input').oninput = function() {
-    searchText = this.value; renderList();
-  };
-
-  // Filter buttons
-  var filterBtns = document.querySelectorAll('.filter-btn');
-  for (var fi=0;fi<filterBtns.length;fi++) {
-    filterBtns[fi].onclick = function() {
-      activeFilter = this.dataset.filter; renderList();
+// ── Converter ─────────────────────────────────────────────────────────────────
+var INGREDIENTS=[
+  {name:'All-purpose flour',gPerCup:125},{name:'Bread flour',gPerCup:130},{name:'Whole wheat flour',gPerCup:120},
+  {name:'Almond flour',gPerCup:96},{name:'Cocoa powder',gPerCup:85},{name:'Cornstarch',gPerCup:120},
+  {name:'White sugar',gPerCup:200},{name:'Brown sugar (packed)',gPerCup:220},{name:'Powdered sugar',gPerCup:120},
+  {name:'Honey',gPerCup:340},{name:'Maple syrup',gPerCup:320},{name:'Butter',gPerCup:227},
+  {name:'Vegetable oil',gPerCup:218},{name:'Olive oil',gPerCup:216},{name:'Milk',gPerCup:240},
+  {name:'Heavy cream',gPerCup:238},{name:'Water',gPerCup:240},{name:'Rice (uncooked)',gPerCup:185},
+  {name:'Rolled oats',gPerCup:90},{name:'Breadcrumbs',gPerCup:108},{name:'Parmesan (grated)',gPerCup:80},
+  {name:'Salt (table)',gPerCup:292},{name:'Salt (kosher)',gPerCup:144},{name:'Baking powder',gPerCup:230},{name:'Baking soda',gPerCup:230}
+];
+function initConverter(){
+  var sel=document.getElementById('conv-ingredient');
+  INGREDIENTS.forEach(function(ing,i){var o=document.createElement('option');o.value=i;o.textContent=ing.name;sel.appendChild(o);});
+  var tabs=document.querySelectorAll('.conv-tab');
+  for(var ti=0;ti<tabs.length;ti++){
+    tabs[ti].onclick=function(){
+      convTab=this.dataset.tab;
+      for(var tj=0;tj<tabs.length;tj++) tabs[tj].className='conv-tab';
+      this.className='conv-tab active';
+      document.getElementById('conv-tab-weight').style.display=convTab==='weight'?'block':'none';
+      document.getElementById('conv-tab-temp').style.display=convTab==='temp'?'block':'none';
+      document.getElementById('conv-tab-volume').style.display=convTab==='volume'?'block':'none';
     };
   }
+  function getGPC(){return INGREDIENTS[parseInt(sel.value)].gPerCup;}
+  function updateWR(g,cups){
+    var tbsp=Math.round(cups*16*10)/10,ml=Math.round(cups*240);
+    var res='<span>'+Math.round(g)+'g</span> = <span>'+Math.round(cups*100)/100+' cup'+(cups!==1?'s':'')+'</span>';
+    if(showExtra) res+='<br><small style="color:#8a7a62">also: '+tbsp+' tbsp · ~'+ml+' ml</small>';
+    document.getElementById('conv-weight-result').innerHTML=res;
+  }
+  document.getElementById('conv-cups').oninput=function(){var v=parseFloat(this.value);if(isNaN(v)||v<0){document.getElementById('conv-weight-result').textContent='Enter a value above to convert.';document.getElementById('conv-grams').value='';return;}var g=v*getGPC();document.getElementById('conv-grams').value=Math.round(g);updateWR(g,v);};
+  document.getElementById('conv-grams').oninput=function(){var v=parseFloat(this.value);if(isNaN(v)||v<0){document.getElementById('conv-weight-result').textContent='Enter a value above to convert.';document.getElementById('conv-cups').value='';return;}var cups=v/getGPC();document.getElementById('conv-cups').value=Math.round(cups*100)/100;updateWR(v,cups);};
+  sel.onchange=function(){var cv=parseFloat(document.getElementById('conv-cups').value);if(!isNaN(cv)&&cv>=0){var g=cv*getGPC();document.getElementById('conv-grams').value=Math.round(g);updateWR(g,cv);}};
+  document.getElementById('conv-also-tbsp').onclick=function(){showExtra=!showExtra;this.style.borderColor=showExtra?'#c4854a':'#d6cbb8';this.style.color=showExtra?'#c4854a':'#8a7a62';var cv=parseFloat(document.getElementById('conv-cups').value);if(!isNaN(cv)&&cv>=0) updateWR(cv*getGPC(),cv);};
+  document.getElementById('conv-celsius').oninput=function(){var v=parseFloat(this.value);if(isNaN(v)){document.getElementById('conv-temp-result').textContent='Enter °C or °F to convert.';document.getElementById('conv-fahrenheit').value='';return;}var f=Math.round((v*9/5+32)*10)/10;document.getElementById('conv-fahrenheit').value=f;document.getElementById('conv-temp-result').innerHTML='<span>'+v+'°C</span> = <span>'+f+'°F</span>';};
+  document.getElementById('conv-fahrenheit').oninput=function(){var v=parseFloat(this.value);if(isNaN(v)){document.getElementById('conv-temp-result').textContent='Enter °C or °F to convert.';document.getElementById('conv-celsius').value='';return;}var c=Math.round((v-32)*5/9*10)/10;document.getElementById('conv-celsius').value=c;document.getElementById('conv-temp-result').innerHTML='<span>'+v+'°F</span> = <span>'+c+'°C</span>';};
+  document.getElementById('conv-ml').oninput=function(){var v=parseFloat(this.value);if(isNaN(v)){document.getElementById('conv-vol-result').textContent='Enter ml or fl oz to convert.';document.getElementById('conv-floz').value='';return;}var fl=Math.round(v/29.5735*100)/100;document.getElementById('conv-floz').value=fl;document.getElementById('conv-vol-result').innerHTML='<span>'+v+'ml</span> = <span>'+fl+' fl oz</span>';};
+  document.getElementById('conv-floz').oninput=function(){var v=parseFloat(this.value);if(isNaN(v)){document.getElementById('conv-vol-result').textContent='Enter ml or fl oz to convert.';document.getElementById('conv-ml').value='';return;}var ml=Math.round(v*29.5735);document.getElementById('conv-ml').value=ml;document.getElementById('conv-vol-result').innerHTML='<span>'+v+' fl oz</span> = <span>'+ml+'ml</span>';};
+}
 
-  // URL extraction
-  document.getElementById('nav-add').onclick = function(){ showScreen('add'); setError(''); document.getElementById('url-input').value=''; };
-  document.getElementById('url-go-btn').onclick = function(){ requireApiKey(doURLExtract); };
-  document.getElementById('url-input').onkeydown = function(ev){ if(ev.key==='Enter') doURLExtract(); };
+// ── Slide panels ──────────────────────────────────────────────────────────────
+function openPanel(id){document.getElementById(id+'-panel').className='slide-panel open';document.getElementById(id+'-overlay').className='panel-overlay open';}
+function closePanel(id){document.getElementById(id+'-panel').className='slide-panel';document.getElementById(id+'-overlay').className='panel-overlay';}
 
-  // Image extraction
-  document.getElementById('drop-zone').onclick = function(){ document.getElementById('img-input').click(); };
+// ── Backup panel ──────────────────────────────────────────────────────────────
+function initBackup(){
+  function showMsg(type,text){var el=document.getElementById('backup-msg');el.textContent=text;el.className='data-msg '+type;el.style.display='block';}
+  function updateApiStatus(){
+    var el=document.getElementById('panel-api-status');
+    if(apiKey){el.textContent='✓ Key saved ('+apiKey.slice(0,12)+'…)';el.style.color='#4a8a4a';}
+    else{el.textContent='⚠️ No key saved';el.style.color='#c44a4a';}
+  }
+  function updateStorageBar(){
+    try{
+      var used=new Blob([localStorage.getItem(DB_KEY)||'']).size;
+      var total=5*1024*1024;
+      var pct=Math.min(100,Math.round(used/total*100));
+      var kb=Math.round(used/1024);
+      var label=kb>1024?(Math.round(kb/102.4)/10)+'MB':kb+'KB';
+      document.getElementById('storage-label').textContent=label+' / ~5MB ('+pct+'%)';
+      var bar=document.getElementById('storage-bar-fill');
+      bar.style.width=pct+'%';
+      bar.style.background=pct>80?'#c44a4a':pct>60?'#e8a030':'#c4854a';
+    }catch(e){}
+  }
 
-  // Text paste extraction
-  document.getElementById('text-go-btn').onclick = function() {
-    var text = document.getElementById('text-input').value.trim();
-    if (!text) return;
-    if (!apiKey) { requireApiKey(function(){ document.getElementById('text-go-btn').click(); }); return; }
-    showLoading('Reading your recipe…');
-    document.getElementById('add-error').style.display = 'none';
-    callClaude([{ role:'user', content:'Extract the recipe from this text:\n\n' + text.slice(0, 12000) }])
-      .then(function(raw) {
-        var r = JSON.parse(raw.replace(/```json|```/g,'').trim());
-        r.id = Date.now()+''; r.source='Text'; r.addedAt=new Date().toISOString();
-        r.done=false; r.myNotes=''; r.photos=[null,null];
-        previewRecipe = r;
-        hideLoading(); renderPreview(); showScreen('preview');
-      }).catch(function() {
-        hideLoading();
-        var err = document.getElementById('add-error');
-        err.textContent = "⚠️ Couldn't parse the recipe from that text. Try adding a title and ingredient list.";
-        err.style.display = 'block';
-      });
-  };
-  document.getElementById('img-input').onchange = function() {
-    var file = this.files[0]; if (!file) return;
-    var self = this; var mime = file.type;
-    if (!apiKey) { requireApiKey(function(){ self.click(); }); return; }
-    showLoading('Reading recipe from photo…');
-    document.getElementById('add-error').style.display = 'none';
-    var fr = new FileReader();
-    fr.onload = function() {
-      var b64 = fr.result.split(',')[1];
-      extractFromImage(b64, mime).then(function(r) {
-        r.id = Date.now()+''; r.source='Photo'; r.addedAt=new Date().toISOString();
-        r.done=false; r.myNotes=''; r.photos=[null,null];
-        previewRecipe = r;
-        hideLoading(); renderPreview(); showScreen('preview');
-      }).catch(function() {
-        hideLoading();
-        var err = document.getElementById('add-error');
-        err.textContent = "⚠️ Couldn't read the recipe from that photo.";
-        err.style.display = 'block';
-      });
-    };
-    fr.onerror = function() {
-      hideLoading();
-      document.getElementById('add-error').textContent = "⚠️ Couldn't read that file.";
-      document.getElementById('add-error').style.display = 'block';
-    };
-    fr.readAsDataURL(file);
-    this.value = '';
+  document.getElementById('nav-backup').onclick=function(){openPanel('backup');updateApiStatus();updateStorageBar();};
+  document.getElementById('backup-close').onclick=function(){closePanel('backup');};
+  document.getElementById('backup-overlay').onclick=function(){closePanel('backup');};
+
+  document.getElementById('panel-api-save').onclick=function(){
+    var k=document.getElementById('panel-api-input').value.trim(); if(!k) return;
+    localStorage.setItem(KEY_KEY,k); apiKey=k;
+    document.getElementById('panel-api-input').value='';
+    updateApiStatus();
+    if(pendingAction){var fn=pendingAction;pendingAction=null;fn();}
   };
 
-  // Preview actions
-  document.getElementById('confirm-save-btn').onclick = function() {
-    recipes.push(previewRecipe); saveAll();
-    selectedId = previewRecipe.id; previewRecipe = null;
-    showScreen('detail'); renderDetail();
-  };
-  document.getElementById('discard-btn').onclick = function() {
-    previewRecipe = null; showScreen('add');
-  };
-
-  // Photo inputs for detail
-  [0,1].forEach(function(idx) {
-    document.getElementById('photo-input-'+idx).onchange = function() {
-      var file = this.files[0]; if (!file) return;
-      var r = getSelected(); if (!r) return;
-      // Compress then upload to Supabase Storage
-      var reader = new FileReader();
-      reader.onload = function(ev) {
-        var img = new Image();
-        img.onload = function() {
-          var MAX=800, w=img.width, h=img.height;
+  document.getElementById('recompress-btn').onclick=function(){
+    var count=0;
+    recipes.forEach(function(r){
+      if(!r.photos) return;
+      r.photos=r.photos.map(function(p){
+        if(!p||p.indexOf('data:image')===-1) return p;
+        try{
+          var img=new Image(); img.src=p;
+          var MAX=400,w=img.width||400,h=img.height||400;
           if(w>h){if(w>MAX){h=Math.round(h*MAX/w);w=MAX;}}else{if(h>MAX){w=Math.round(w*MAX/h);h=MAX;}}
           var canvas=document.createElement('canvas'); canvas.width=w; canvas.height=h;
           canvas.getContext('2d').drawImage(img,0,0,w,h);
-          var dataUrl=canvas.toDataURL('image/jpeg',0.8);
-          // Show preview immediately
-          var p=(r.photos||[null,null]).slice(); p[idx]=dataUrl;
-          updateSelected({photos:p}); renderPhotoSlot(idx, getSelected());
-          // Upload to Supabase Storage in background
-          sbUploadPhoto(r.id, idx, dataUrl).then(function(url){
-            var latest=getSelected(); if(!latest) return;
-            var p2=(latest.photos||[null,null]).slice(); p2[idx]=url;
-            updateSelected({photos:p2}); renderPhotoSlot(idx, getSelected());
-          }).catch(function(){ /* keep local preview on upload fail */ });
-        };
-        img.onerror=function(){ alert('Could not load photo.'); };
-        img.src=ev.target.result;
+          var np=canvas.toDataURL('image/jpeg',0.4);
+          if(np.length<p.length){count++;return np;} return p;
+        }catch(e){return p;}
+      });
+    });
+    saveAll(); updateStorageBar();
+    showMsg('ok','✓ Re-compressed '+count+' photos. Try adding your recipe again.');
+  };
+
+  document.getElementById('push-btn').onclick=function(){
+    var btn=this; btn.textContent='Pushing…'; btn.disabled=true;
+    Promise.all(recipes.map(function(r){return sbSave(r);})).then(function(){
+      showMsg('ok','✓ '+recipes.length+' recipes pushed to Supabase!');
+      btn.textContent='Push all recipes to Supabase →'; btn.disabled=false;
+    }).catch(function(e){showMsg('err','⚠️ Error: '+e.message);btn.textContent='Push all recipes to Supabase →';btn.disabled=false;});
+  };
+
+  document.getElementById('pull-btn').onclick=function(){
+    var btn=this; btn.textContent='Loading…'; btn.disabled=true;
+    sbLoad().then(function(sbR){
+      if(sbR.length===0){showMsg('err','⚠️ No recipes found in Supabase.');}
+      else{
+        var byId={};recipes.forEach(function(r){byId[r.id]=r;});
+        sbR.forEach(function(r){var local=byId[r.id];if(local){r.photos=(r.photos||[null,null]).map(function(p,i){return p||(local.photos&&local.photos[i])||null;});}byId[r.id]=r;});
+        recipes=Object.keys(byId).map(function(k){return byId[k];});
+        saveAll(); renderList();
+        showMsg('ok','✓ Loaded '+sbR.length+' recipes from Supabase!');
+      }
+      btn.textContent='← Load recipes from Supabase'; btn.disabled=false;
+    }).catch(function(e){showMsg('err','⚠️ Could not reach Supabase: '+e.message);btn.textContent='← Load recipes from Supabase';btn.disabled=false;});
+  };
+
+  document.getElementById('do-export').onclick=function(){
+    var json=localStorage.getItem(DB_KEY)||'[]';
+    var area=document.getElementById('export-area'); var ta=document.getElementById('export-text');
+    ta.value=json; area.style.display='block'; ta.select();
+    showMsg('ok',JSON.parse(json).length+' recipes ready. Select all text and copy.');
+  };
+  document.getElementById('do-import-btn').onclick=function(){document.getElementById('import-area').style.display='block';document.getElementById('import-paste').focus();};
+  document.getElementById('do-import-confirm').onclick=function(){
+    try{
+      var imported=JSON.parse(document.getElementById('import-paste').value.trim());
+      if(!Array.isArray(imported)) throw new Error('Not valid');
+      var byId={};recipes.forEach(function(r){byId[r.id]=true;});
+      var added=0;imported.forEach(function(r){if(!byId[r.id]){recipes.push(r);added++;}});
+      saveAll(); renderList();
+      showMsg('ok','✓ Imported '+added+' recipes!');
+      document.getElementById('import-area').style.display='none';
+    }catch(e){showMsg('err','⚠️ Invalid data — paste the full export text.');}
+  };
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+function init(){
+  apiKey=localStorage.getItem(KEY_KEY)||'';
+  recipes=loadRecipes();
+  showScreen('list');
+
+  // Supabase sync in background
+  sbLoad().then(function(sbR){
+    if(sbR.length>0){
+      var byId={};recipes.forEach(function(r){byId[r.id]=r;});
+      sbR=sbR.map(function(r){var local=byId[r.id];if(local){r.photos=(r.photos||[null,null]).map(function(p,i){return p||(local.photos&&local.photos[i])||null;});}return r;});
+      sbR.forEach(function(r){byId[r.id]=r;});
+      var localOnly=[];Object.keys(byId).forEach(function(id){if(!sbR.find(function(r){return r.id===id;})){localOnly.push(byId[id]);}});
+      localOnly.forEach(function(r){sbSave(r).catch(function(){});});
+      recipes=Object.keys(byId).map(function(k){return byId[k];});
+      try{localStorage.setItem(DB_KEY,JSON.stringify(recipes));}catch(e){}
+      renderList();
+    } else {
+      recipes.forEach(function(r){sbSave(r).catch(function(){});});
+    }
+    // Heartbeat ping
+    fetch(SB_URL+'/rest/v1/heartbeat',{method:'POST',headers:Object.assign({},sbH(),{'Prefer':'resolution=merge-duplicates'}),body:JSON.stringify({id:'ping',ts:new Date().toISOString()})}).catch(function(){});
+  }).catch(function(){
+    fetch(SB_URL+'/rest/v1/recipes?limit=1',{headers:sbH()}).catch(function(){});
+  });
+
+  // Header back button
+  document.getElementById('header-btn').onclick=function(){showScreen('list');previewRecipe=null;document.getElementById('add-error').style.display='none';};
+
+  // API modal
+  document.getElementById('modal-api-save').onclick=function(){
+    var k=document.getElementById('modal-api-input').value.trim(); if(!k) return;
+    localStorage.setItem(KEY_KEY,k); apiKey=k;
+    document.getElementById('modal-api-input').value='';
+    document.getElementById('api-modal').className='';
+    if(pendingAction){var fn=pendingAction;pendingAction=null;fn();}
+  };
+  document.getElementById('modal-api-cancel').onclick=function(){document.getElementById('api-modal').className='';pendingAction=null;};
+  document.getElementById('modal-api-input').onkeydown=function(ev){if(ev.key==='Enter') document.getElementById('modal-api-save').click();};
+
+  // Search & filters
+  document.getElementById('search-input').oninput=function(){searchText=this.value;renderList();};
+  var fbtns=document.querySelectorAll('.filter-btn');
+  for(var fi=0;fi<fbtns.length;fi++) fbtns[fi].onclick=function(){activeFilter=this.dataset.filter;renderList();};
+
+  // Nav
+  document.getElementById('nav-add').onclick=function(){showScreen('add');document.getElementById('add-error').style.display='none';document.getElementById('url-input').value='';};
+  document.getElementById('nav-converter').onclick=function(){openPanel('conv');};
+  document.getElementById('conv-close').onclick=function(){closePanel('conv');};
+  document.getElementById('conv-overlay').onclick=function(){closePanel('conv');};
+
+  // URL extraction
+  document.getElementById('url-go-btn').onclick=function(){requireApiKey(doURLExtract);};
+  document.getElementById('url-input').onkeydown=function(ev){if(ev.key==='Enter') requireApiKey(doURLExtract);};
+
+  // Image extraction
+  document.getElementById('drop-zone').onclick=function(){document.getElementById('img-input').click();};
+  document.getElementById('img-input').onchange=function(){
+    var file=this.files[0]; if(!file) return;
+    var mime=file.type; var self=this;
+    requireApiKey(function(){
+      showLoading('Reading recipe from photo…');
+      document.getElementById('add-error').style.display='none';
+      var fr=new FileReader();
+      fr.onload=function(){
+        extractFromImage(fr.result.split(',')[1],mime).then(function(r){
+          r.id=Date.now()+'';r.source='Photo';r.addedAt=new Date().toISOString();r.done=false;r.myNotes='';r.photos=[null,null];
+          previewRecipe=r; hideLoading(); renderPreview(); showScreen('preview');
+        }).catch(function(){hideLoading();var e=document.getElementById('add-error');e.textContent='⚠️ Couldn\'t read the recipe from that photo.';e.style.display='block';});
       };
-      reader.readAsDataURL(file);
+      fr.readAsDataURL(file);
+    });
+    self.value='';
+  };
+
+  // Text extraction
+  document.getElementById('text-go-btn').onclick=function(){
+    var text=document.getElementById('text-input').value.trim(); if(!text) return;
+    requireApiKey(function(){
+      showLoading('Reading your recipe…');
+      document.getElementById('add-error').style.display='none';
+      callClaude([{role:'user',content:'Extract the recipe from this text:\n\n'+text.slice(0,12000)}]).then(function(raw){
+        var r=JSON.parse(raw.replace(/```json|```/g,'').trim());
+        r.id=Date.now()+'';r.source='Text';r.addedAt=new Date().toISOString();r.done=false;r.myNotes='';r.photos=[null,null];
+        previewRecipe=r; hideLoading(); renderPreview(); showScreen('preview');
+      }).catch(function(){hideLoading();var e=document.getElementById('add-error');e.textContent='⚠️ Couldn\'t parse the recipe from that text.';e.style.display='block';});
+    });
+  };
+
+  // Preview
+  document.getElementById('confirm-save-btn').onclick=function(){recipes.push(previewRecipe);saveAll();selectedId=previewRecipe.id;previewRecipe=null;document.getElementById('url-input').value='';showScreen('detail');renderDetail();};
+  document.getElementById('discard-btn').onclick=function(){previewRecipe=null;showScreen('add');};
+
+  // Photo slots
+  [0,1].forEach(function(idx){
+    document.getElementById('photo-input-'+idx).onchange=function(){
+      var file=this.files[0]; if(!file) return;
+      var r=getSelected(); if(!r) return;
+      var fr=new FileReader();
+      fr.onload=function(){
+        var img=new Image();
+        img.onload=function(){
+          var MAX=800,w=img.width,h=img.height;
+          if(w>h){if(w>MAX){h=Math.round(h*MAX/w);w=MAX;}}else{if(h>MAX){w=Math.round(w*MAX/h);h=MAX;}}
+          var canvas=document.createElement('canvas');canvas.width=w;canvas.height=h;
+          canvas.getContext('2d').drawImage(img,0,0,w,h);
+          var dataUrl=canvas.toDataURL('image/jpeg',0.8);
+          var p=(r.photos||[null,null]).slice();p[idx]=dataUrl;
+          updateSelected({photos:p});renderPhotoSlot(idx,getSelected());
+          sbUploadPhoto(r.id,idx,dataUrl).then(function(url){var latest=getSelected();if(!latest)return;var p2=(latest.photos||[null,null]).slice();p2[idx]=url;updateSelected({photos:p2});renderPhotoSlot(idx,getSelected());}).catch(function(){});
+        };
+        img.onerror=function(){alert('Could not load photo.');};
+        img.src=fr.result;
+      };
+      fr.readAsDataURL(file);
       this.value='';
     };
   });
 
-  // PWA manifest
-  var manifest = {name:"Jojo's Recipes",short_name:"Jojo's Recipes",start_url:"./",display:"standalone",background_color:"#f5f0e8",theme_color:"#2c2416",icons:[{src:"apple-touch-icon.png",sizes:"180x180",type:"image/png",purpose:"any maskable"},{src:"favicon-32.png",sizes:"32x32",type:"image/png"}]};
-  var blob = new Blob([JSON.stringify(manifest)],{type:"application/json"});
-  var ml = document.createElement('link'); ml.rel='manifest'; ml.href=URL.createObjectURL(blob);
-  document.head.appendChild(ml);
-  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function(){});
+  initConverter();
+  initBackup();
 }
 
-function doURLExtract() {
-  var url = document.getElementById('url-input').value.trim();
-  if (!url) return;
+function doURLExtract(){
+  var url=document.getElementById('url-input').value.trim(); if(!url) return;
   showLoading('Fetching recipe…');
-  document.getElementById('add-error').style.display = 'none';
-  extractFromURL(url).then(function(r) {
-    r.id = Date.now()+''; r.source=url; r.addedAt=new Date().toISOString();
-    r.done=false; r.myNotes=''; r.photos=[null,null];
-    previewRecipe = r;
-    hideLoading(); renderPreview(); showScreen('preview');
-  }).catch(function() {
-    hideLoading();
-    var err = document.getElementById('add-error');
-    err.textContent = "⚠️ Couldn't extract from that link. Make sure it's a public recipe page. Facebook/Instagram won't work — screenshot and use photo instead.";
-    err.style.display = 'block';
+  document.getElementById('add-error').style.display='none';
+  extractFromURL(url).then(function(r){
+    r.id=Date.now()+'';r.source=url;r.addedAt=new Date().toISOString();r.done=false;r.myNotes='';r.photos=[null,null];
+    previewRecipe=r;hideLoading();renderPreview();showScreen('preview');
+  }).catch(function(){
+    hideLoading();var e=document.getElementById('add-error');
+    e.textContent='⚠️ Couldn\'t extract from that link. Make sure it\'s a public recipe page. Facebook/Instagram won\'t work — use photo instead.';
+    e.style.display='block';
   });
 }
 
-
-// ── Converter ─────────────────────────────────────────────────────────────────
-var INGREDIENTS = [
-  {name:'All-purpose flour',   gPerCup:125},
-  {name:'Bread flour',         gPerCup:130},
-  {name:'Whole wheat flour',   gPerCup:120},
-  {name:'Almond flour',        gPerCup:96},
-  {name:'Cocoa powder',        gPerCup:85},
-  {name:'Cornstarch',          gPerCup:120},
-  {name:'White sugar',         gPerCup:200},
-  {name:'Brown sugar (packed)',gPerCup:220},
-  {name:'Powdered sugar',      gPerCup:120},
-  {name:'Honey',               gPerCup:340},
-  {name:'Maple syrup',         gPerCup:320},
-  {name:'Butter',              gPerCup:227},
-  {name:'Vegetable oil',       gPerCup:218},
-  {name:'Olive oil',           gPerCup:216},
-  {name:'Milk',                gPerCup:240},
-  {name:'Heavy cream',         gPerCup:238},
-  {name:'Water',               gPerCup:240},
-  {name:'Rice (uncooked)',     gPerCup:185},
-  {name:'Rolled oats',         gPerCup:90},
-  {name:'Breadcrumbs',         gPerCup:108},
-  {name:'Parmesan (grated)',   gPerCup:80},
-  {name:'Salt (table)',        gPerCup:292},
-  {name:'Salt (kosher)',       gPerCup:144},
-  {name:'Baking powder',       gPerCup:230},
-  {name:'Baking soda',         gPerCup:230},
-];
-
-var convTab = 'weight';
-var showExtra = false;
-
-function initConverter() {
-  // Populate ingredient select
-  var sel = document.getElementById('conv-ingredient');
-  INGREDIENTS.forEach(function(ing, i) {
-    var opt = document.createElement('option');
-    opt.value = i; opt.textContent = ing.name;
-    sel.appendChild(opt);
-  });
-
-  // Tabs
-  var tabs = document.querySelectorAll('.conv-tab');
-  for (var ti=0; ti<tabs.length; ti++) {
-    tabs[ti].onclick = function() {
-      convTab = this.dataset.tab;
-      for (var tj=0; tj<tabs.length; tj++) tabs[tj].className = 'conv-tab';
-      this.className = 'conv-tab active';
-      document.getElementById('conv-tab-weight').style.display = convTab==='weight'?'block':'none';
-      document.getElementById('conv-tab-temp').style.display   = convTab==='temp'  ?'block':'none';
-      document.getElementById('conv-tab-volume').style.display = convTab==='volume'?'block':'none';
-    };
-  }
-
-  // FAB open/close
-  document.getElementById('nav-converter').onclick = function() {
-    document.getElementById('conv-panel').className = 'open';
-    document.getElementById('conv-overlay').className = 'open';
-  };
-  function closeConv() {
-    document.getElementById('conv-panel').className = '';
-    document.getElementById('conv-overlay').className = '';
-  }
-  document.getElementById('conv-close').onclick = closeConv;
-  document.getElementById('conv-overlay').onclick = closeConv;
-
-  // ── Weight conversions ──
-  function getGPerCup() {
-    var idx = parseInt(document.getElementById('conv-ingredient').value);
-    return INGREDIENTS[idx].gPerCup;
-  }
-  function updateWeightResult(grams, cups) {
-    var idx = parseInt(document.getElementById('conv-ingredient').value);
-    var ing = INGREDIENTS[idx];
-    var tbsp = Math.round(cups * 16 * 10) / 10;
-    var ml   = Math.round(cups * 240);
-    var res  = '<span>'+Math.round(grams)+'g</span> = <span>'+Math.round(cups*100)/100+' cup'+(cups!==1?'s':'')+'</span>';
-    if (showExtra) res += '<br><small style="color:#8a7a62">also: '+tbsp+' tbsp &nbsp;·&nbsp; ~'+ml+' ml</small>';
-    document.getElementById('conv-weight-result').innerHTML = res;
-  }
-
-  document.getElementById('conv-cups').oninput = function() {
-    var cups = parseFloat(this.value);
-    if (isNaN(cups)||cups<0) { document.getElementById('conv-weight-result').textContent='Enter a value above to convert.'; document.getElementById('conv-grams').value=''; return; }
-    var grams = cups * getGPerCup();
-    document.getElementById('conv-grams').value = Math.round(grams);
-    updateWeightResult(grams, cups);
-  };
-
-  document.getElementById('conv-grams').oninput = function() {
-    var grams = parseFloat(this.value);
-    if (isNaN(grams)||grams<0) { document.getElementById('conv-weight-result').textContent='Enter a value above to convert.'; document.getElementById('conv-cups').value=''; return; }
-    var cups = grams / getGPerCup();
-    document.getElementById('conv-cups').value = Math.round(cups*100)/100;
-    updateWeightResult(grams, cups);
-  };
-
-  document.getElementById('conv-ingredient').onchange = function() {
-    var cv = parseFloat(document.getElementById('conv-cups').value);
-    if (!isNaN(cv) && cv >= 0) {
-      var grams = cv * getGPerCup();
-      document.getElementById('conv-grams').value = Math.round(grams);
-      updateWeightResult(grams, cv);
-    }
-  };
-
-  document.getElementById('conv-also-tbsp').onclick = function() {
-    showExtra = !showExtra;
-    this.style.borderColor = showExtra ? '#c4854a' : '#d6cbb8';
-    this.style.color       = showExtra ? '#c4854a' : '#8a7a62';
-    var cv = parseFloat(document.getElementById('conv-cups').value);
-    if (!isNaN(cv) && cv >= 0) updateWeightResult(cv * getGPerCup(), cv);
-  };
-
-  // ── Temperature ──
-  document.getElementById('conv-celsius').oninput = function() {
-    var c = parseFloat(this.value);
-    if (isNaN(c)) { document.getElementById('conv-temp-result').textContent='Enter °C or °F to convert.'; document.getElementById('conv-fahrenheit').value=''; return; }
-    var f = Math.round((c*9/5+32)*10)/10;
-    document.getElementById('conv-fahrenheit').value = f;
-    document.getElementById('conv-temp-result').innerHTML = '<span>'+c+'°C</span> = <span>'+f+'°F</span><br><small style="color:#8a7a62">Gas mark: '+celsiusToGas(c)+'</small>';
-  };
-  document.getElementById('conv-fahrenheit').oninput = function() {
-    var f = parseFloat(this.value);
-    if (isNaN(f)) { document.getElementById('conv-temp-result').textContent='Enter °C or °F to convert.'; document.getElementById('conv-celsius').value=''; return; }
-    var c = Math.round((f-32)*5/9*10)/10;
-    document.getElementById('conv-celsius').value = c;
-    document.getElementById('conv-temp-result').innerHTML = '<span>'+f+'°F</span> = <span>'+c+'°C</span><br><small style="color:#8a7a62">Gas mark: '+celsiusToGas(c)+'</small>';
-  };
-  function celsiusToGas(c) {
-    if (c<135) return '½'; if (c<150) return '1'; if (c<165) return '2';
-    if (c<175) return '3'; if (c<190) return '4'; if (c<200) return '5';
-    if (c<220) return '6'; if (c<230) return '7'; if (c<245) return '8'; return '9';
-  }
-
-  // ── Volume ──
-  document.getElementById('conv-ml').oninput = function() {
-    var ml = parseFloat(this.value);
-    if (isNaN(ml)) { document.getElementById('conv-vol-result').textContent='Enter ml or fl oz to convert.'; document.getElementById('conv-floz').value=''; return; }
-    var fl = Math.round(ml/29.5735*100)/100;
-    var tsp = Math.round(ml/4.929*10)/10;
-    var tbsp = Math.round(ml/14.787*10)/10;
-    document.getElementById('conv-floz').value = fl;
-    document.getElementById('conv-vol-result').innerHTML = '<span>'+ml+'ml</span> = <span>'+fl+' fl oz</span><br><small style="color:#8a7a62">also: '+tsp+' tsp &nbsp;·&nbsp; '+tbsp+' tbsp</small>';
-  };
-  document.getElementById('conv-floz').oninput = function() {
-    var fl = parseFloat(this.value);
-    if (isNaN(fl)) { document.getElementById('conv-vol-result').textContent='Enter ml or fl oz to convert.'; document.getElementById('conv-ml').value=''; return; }
-    var ml = Math.round(fl*29.5735);
-    var tsp = Math.round(fl*6*10)/10;
-    var tbsp = Math.round(fl*2*10)/10;
-    document.getElementById('conv-ml').value = ml;
-    document.getElementById('conv-vol-result').innerHTML = '<span>'+fl+' fl oz</span> = <span>'+ml+'ml</span><br><small style="color:#8a7a62">also: '+tsp+' tsp &nbsp;·&nbsp; '+tbsp+' tbsp</small>';
-  };
-}
-
-
-// ── Export / Import ────────────────────────────────────────────────────────────
-function initDataPanel() {
-  function openData() {
-    document.getElementById('data-panel').className = 'open';
-    document.getElementById('data-overlay').className = 'open';
-    updateStorageBar();
-  }
-  // Show current key status
-  var statusEl = document.getElementById('panel-api-status');
-  if (apiKey) {
-    statusEl.textContent = '✓ Key saved (' + apiKey.slice(0,12) + '…)';
-    statusEl.style.color = '#4a8a4a';
-  } else {
-    statusEl.textContent = '⚠️ No key saved — extraction won't work';
-    statusEl.style.color = '#c44a4a';
-  }
-
-  document.getElementById('panel-api-save').onclick = function() {
-    var k = document.getElementById('panel-api-input').value.trim();
-    if (!k) return;
-    localStorage.setItem(KEY_KEY, k);
-    apiKey = k;
-    document.getElementById('panel-api-input').value = '';
-    statusEl.textContent = '✓ Key saved (' + k.slice(0,12) + '…)';
-    statusEl.style.color = '#4a8a4a';
-  };
-
-  function updateStorageBar() {
-    try {
-      var used = new Blob([localStorage.getItem(DB_KEY)||'']).size;
-      var total = 5 * 1024 * 1024; // ~5MB typical limit
-      var pct = Math.min(100, Math.round(used / total * 100));
-      var kb = Math.round(used / 1024);
-      var label = kb > 1024 ? (Math.round(kb/102.4)/10)+'MB' : kb+'KB';
-      document.getElementById('storage-label').textContent = label + ' / ~5MB (' + pct + '%)';
-      document.getElementById('storage-bar').style.width = pct + '%';
-      document.getElementById('storage-bar').style.background = pct > 80 ? '#c44a4a' : pct > 60 ? '#e8a030' : '#c4854a';
-    } catch(e) {}
-  }
-
-  function recompressAllPhotos() {
-    var count = 0;
-    recipes.forEach(function(r) {
-      if (!r.photos) return;
-      r.photos = r.photos.map(function(p) {
-        if (!p || p.indexOf('data:image') === -1) return p;
-        try {
-          var img = new Image();
-          var canvas = document.createElement('canvas');
-          img.src = p;
-          var MAX = 400, w = img.width||400, h = img.height||400;
-          if (w > h) { if (w > MAX) { h = Math.round(h*MAX/w); w = MAX; } }
-          else       { if (h > MAX) { w = Math.round(w*MAX/h); h = MAX; } }
-          canvas.width = w; canvas.height = h;
-          canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-          var newP = canvas.toDataURL('image/jpeg', 0.4);
-          if (newP.length < p.length) { count++; return newP; }
-          return p;
-        } catch(e) { return p; }
-      });
-    });
-    saveAll();
-    updateStorageBar();
-    showDataMsg('ok', '✓ Re-compressed ' + count + ' photos. Try adding your recipe again.');
-  }
-
-  document.getElementById('clear-photos-btn').onclick = function() {
-    if (confirm('Re-compress all stored photos to smaller size? Image quality will be slightly reduced but recipes are unaffected.')) {
-      recompressAllPhotos();
-    }
-  };
-
-  function closeData() {
-    document.getElementById('data-panel').className = '';
-    document.getElementById('data-overlay').className = '';
-    document.getElementById('import-paste').style.display = 'none';
-    document.getElementById('import-paste').value = '';
-    document.getElementById('do-import-confirm').style.display = 'none';
-    var msg = document.getElementById('data-msg');
-    msg.style.display = 'none'; msg.className = 'data-msg';
-  }
-  document.getElementById('nav-backup').onclick = openData;
-  document.getElementById('data-close').onclick = closeData;
-  document.getElementById('data-overlay').onclick = closeData;
-
-  // Push to Supabase button
-  document.getElementById('push-to-supabase').onclick = function() {
-    var btn = this;
-    btn.textContent = 'Pushing…'; btn.disabled = true;
-    var promises = recipes.map(function(r){ return sbSave(r); });
-    Promise.all(promises).then(function() {
-      showDataMsg('ok', '✓ '+recipes.length+' recipes pushed to Supabase! Open the new app and they will load automatically.');
-      btn.textContent = '✓ Done!';
-    }).catch(function(e) {
-      showDataMsg('err', '⚠️ Error: '+e.message+'. Check your Supabase setup.');
-      btn.textContent = 'Push all recipes to Supabase →'; btn.disabled = false;
-    });
-  };
-
-  document.getElementById('pull-from-supabase').onclick = function() {
-    var btn = this;
-    btn.textContent = 'Loading…'; btn.disabled = true;
-    sbLoad().then(function(sbRecipes) {
-      if (sbRecipes.length === 0) {
-        showDataMsg('err', '⚠️ No recipes found in Supabase. Have you pushed from the old app yet? Also check that the SQL table was created in Supabase dashboard.');
-      } else {
-        // Merge with existing
-        var byId = {};
-        recipes.forEach(function(r){ byId[r.id]=r; });
-        sbRecipes.forEach(function(r){
-          var local = byId[r.id];
-          if (local) {
-            r.photos = (r.photos||[null,null]).map(function(p,i){
-              return p || (local.photos&&local.photos[i])||null;
-            });
-          }
-          byId[r.id] = r;
-        });
-        recipes = Object.values ? Object.values(byId) : Object.keys(byId).map(function(k){return byId[k];});
-        saveAll();
-        renderList();
-        showDataMsg('ok', '✓ Loaded '+sbRecipes.length+' recipes from Supabase!');
-      }
-      btn.textContent = '← Load recipes from Supabase'; btn.disabled = false;
-    }).catch(function(e) {
-      showDataMsg('err', '⚠️ Could not reach Supabase: '+e.message+'. Check that the recipes table exists (run the SQL setup) and that your internet connection is on.');
-      btn.textContent = '← Load recipes from Supabase'; btn.disabled = false;
-    });
-  };
-
-  document.getElementById('do-export').onclick = function() {
-    var json = localStorage.getItem(DB_KEY) || '[]';
-    var area = document.getElementById('export-area');
-    var ta   = document.getElementById('export-text');
-    ta.value = json;
-    area.style.display = 'block';
-    ta.select();
-    showDataMsg('ok', JSON.parse(json).length+' recipes. Select all the text and copy it.');
-  };
-
-  document.getElementById('do-import-btn').onclick = function() {
-    document.getElementById('import-area').style.display = 'block';
-    document.getElementById('import-paste').focus();
-  };
-
-  document.getElementById('do-import-confirm').onclick = function() {
-    var text = document.getElementById('import-paste').value.trim();
-    try {
-      var imported = JSON.parse(text);
-      if (!Array.isArray(imported)) throw new Error('Not an array');
-      // Merge: keep existing, add imported ones that don't exist yet
-      var existing = recipes.slice();
-      var existingIds = {};
-      existing.forEach(function(r){ existingIds[r.id]=true; });
-      var added = 0;
-      imported.forEach(function(r) {
-        if (!existingIds[r.id]) { existing.push(r); added++; }
-      });
-      recipes = existing;
-      saveAll();
-      renderList();
-      showDataMsg('ok', '✓ Imported '+added+' recipes successfully!');
-      document.getElementById('import-paste').style.display = 'none';
-      document.getElementById('do-import-confirm').style.display = 'none';
-    } catch(e) {
-      showDataMsg('err', '⚠️ Invalid data — make sure you pasted the full export.');
-    }
-  };
-
-  function showDataMsg(type, text) {
-    var el = document.getElementById('data-msg');
-    el.textContent = text;
-    el.className = 'data-msg ' + type;
-    el.style.display = 'block';
-  }
-}
-
-
-// ── Export / Import ────────────────────────────────────────────────────────────
-
-
-// Start
 init();
-initConverter();
-initDataPanel();
 </script>
 </body>
 </html>
