@@ -386,6 +386,16 @@
 <div id="data-overlay"></div>
 <div id="data-panel">
   <div class="conv-title">Backup & Restore <button class="conv-close" id="data-close">×</button></div>
+
+  <!-- API Key section -->
+  <div style="background:#f5f0e8;border:1.5px solid #d6cbb8;border-radius:8px;padding:14px;margin-bottom:16px">
+    <div style="font-size:14px;font-weight:bold;color:#2c2416;margin-bottom:6px">🔑 Anthropic API Key</div>
+    <div style="font-size:13px;color:#8a7a62;margin-bottom:8px">Required for extracting recipes from links, photos and text.</div>
+    <input id="panel-api-input" type="password" placeholder="sk-ant-api03-…"
+      style="width:100%;border:1.5px solid #d6cbb8;border-radius:8px;padding:10px 12px;font-size:15px;margin-bottom:8px;outline:none;background:#fff;font-family:Georgia,serif;color:#2c2416"/>
+    <button id="panel-api-save" style="width:100%;background:#2c2416;color:#e8d9b8;border:none;border-radius:8px;padding:11px;font-size:15px;cursor:pointer;font-family:Georgia,serif">Save API Key</button>
+    <div id="panel-api-status" style="font-size:13px;margin-top:6px;color:#8a7a62;text-align:center"></div>
+  </div>
   <div id="storage-bar-wrap" style="margin-bottom:16px">
     <div style="display:flex;justify-content:space-between;font-size:13px;color:#8a7a62;margin-bottom:5px">
       <span>Storage used</span><span id="storage-label"></span>
@@ -1367,6 +1377,26 @@ function initDataPanel() {
     document.getElementById('data-overlay').className = 'open';
     updateStorageBar();
   }
+  // Show current key status
+  var statusEl = document.getElementById('panel-api-status');
+  if (apiKey) {
+    statusEl.textContent = '✓ Key saved (' + apiKey.slice(0,12) + '…)';
+    statusEl.style.color = '#4a8a4a';
+  } else {
+    statusEl.textContent = '⚠️ No key saved — extraction won't work';
+    statusEl.style.color = '#c44a4a';
+  }
+
+  document.getElementById('panel-api-save').onclick = function() {
+    var k = document.getElementById('panel-api-input').value.trim();
+    if (!k) return;
+    localStorage.setItem(KEY_KEY, k);
+    apiKey = k;
+    document.getElementById('panel-api-input').value = '';
+    statusEl.textContent = '✓ Key saved (' + k.slice(0,12) + '…)';
+    statusEl.style.color = '#4a8a4a';
+  };
+
   function updateStorageBar() {
     try {
       var used = new Blob([localStorage.getItem(DB_KEY)||'']).size;
@@ -1525,6 +1555,26 @@ function initDataPanel() {
     document.getElementById('data-overlay').className = 'open';
     updateStorageBar();
   }
+  // Show current key status
+  var statusEl = document.getElementById('panel-api-status');
+  if (apiKey) {
+    statusEl.textContent = '✓ Key saved (' + apiKey.slice(0,12) + '…)';
+    statusEl.style.color = '#4a8a4a';
+  } else {
+    statusEl.textContent = '⚠️ No key saved — extraction won't work';
+    statusEl.style.color = '#c44a4a';
+  }
+
+  document.getElementById('panel-api-save').onclick = function() {
+    var k = document.getElementById('panel-api-input').value.trim();
+    if (!k) return;
+    localStorage.setItem(KEY_KEY, k);
+    apiKey = k;
+    document.getElementById('panel-api-input').value = '';
+    statusEl.textContent = '✓ Key saved (' + k.slice(0,12) + '…)';
+    statusEl.style.color = '#4a8a4a';
+  };
+
   function updateStorageBar() {
     try {
       var used = new Blob([localStorage.getItem(DB_KEY)||'']).size;
