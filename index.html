@@ -521,7 +521,7 @@ function sbUploadPhoto(recipeId,slotIdx,dataUrl){
 // ── API ───────────────────────────────────────────────────────────────────────
 var SYSTEM='You are a recipe extraction assistant. Return ONLY a valid JSON object, no markdown, no fences. Structure: {"name":"Recipe Name","category":"Main/Dessert/Breakfast/Snack/Soup/Salad","cuisine":"Italian/French/Asian/etc","servings":4,"prepTime":"15 min","cookTime":"30 min","ingredients":["item 1","item 2"],"steps":["First step","Second step"],"notes":"Optional original tips"}';
 function callClaude(messages){
-  return fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1500,system:SYSTEM,messages:messages})})
+  return fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:1500,system:SYSTEM,messages:messages})})
     .then(function(r){return r.json();})
     .then(function(data){
       if(data.error) throw new Error(data.error.message);
@@ -937,7 +937,7 @@ function init(){
         extractFromImage(fr.result.split(',')[1],mime).then(function(r){
           r.id=Date.now()+'';r.source='Photo';r.addedAt=new Date().toISOString();r.done=false;r.myNotes='';r.photos=[null,null];
           previewRecipe=r; hideLoading(); renderPreview(); showScreen('preview');
-        }).catch(function(){hideLoading();var e=document.getElementById('add-error');e.textContent='⚠️ Couldn\'t read the recipe from that photo.';e.style.display='block';});
+        }).catch(function(err){hideLoading();var e=document.getElementById('add-error');e.textContent='⚠️ '+err.message;e.style.display='block';});
       };
       fr.readAsDataURL(file);
     });
@@ -954,7 +954,7 @@ function init(){
         var r=JSON.parse(raw.replace(/```json|```/g,'').trim());
         r.id=Date.now()+'';r.source='Text';r.addedAt=new Date().toISOString();r.done=false;r.myNotes='';r.photos=[null,null];
         previewRecipe=r; hideLoading(); renderPreview(); showScreen('preview');
-      }).catch(function(){hideLoading();var e=document.getElementById('add-error');e.textContent='⚠️ Couldn\'t parse the recipe from that text.';e.style.display='block';});
+      }).catch(function(err){hideLoading();var e=document.getElementById('add-error');e.textContent='⚠️ '+err.message;e.style.display='block';});
     });
   };
 
@@ -1001,7 +1001,7 @@ function doURLExtract(){
     previewRecipe=r;hideLoading();renderPreview();showScreen('preview');
   }).catch(function(){
     hideLoading();var e=document.getElementById('add-error');
-    e.textContent='⚠️ Couldn\'t extract from that link. Make sure it\'s a public recipe page. Facebook/Instagram won\'t work — use photo instead.';
+    e.textContent='⚠️ '+err.message;
     e.style.display='block';
   });
 }
