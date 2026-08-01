@@ -395,6 +395,15 @@
       <div id="panel-api-status" style="font-size:13px;margin-top:4px;text-align:center;color:#8a7a62"></div>
     </div>
 
+    <div class="backup-section">
+      <h4>🐙 GitHub Token</h4>
+      <p>Required for syncing recipes to GitHub. Get one at github.com → Settings → Developer settings → Personal access tokens → select <strong>gist</strong> scope.</p>
+      <input id="panel-gh-input" type="password" placeholder="ghp_…"
+        style="width:100%;border:1.5px solid #d6cbb8;border-radius:8px;padding:10px 12px;font-size:15px;margin-bottom:8px;outline:none;background:#fff;font-family:Georgia,serif;color:#2c2416"/>
+      <button id="panel-gh-save" class="backup-btn backup-btn-dark">Save GitHub Token</button>
+      <div id="panel-gh-status" style="font-size:13px;margin-top:4px;text-align:center;color:#8a7a62"></div>
+    </div>
+
     <div class="storage-bar-wrap">
       <div class="storage-bar-labels"><span>Storage used</span><span id="storage-label"></span></div>
       <div class="storage-bar-track"><div id="storage-bar-fill" class="storage-bar-fill" style="width:0%"></div></div>
@@ -402,10 +411,10 @@
     </div>
 
     <div class="backup-section" style="background:#f0faf5;border-color:#a0cca0">
-      <h4 style="color:#2a6a2a">☁️ Supabase sync</h4>
-      <p>Push all recipes to cloud or load them from cloud.</p>
-      <button id="push-btn" class="backup-btn backup-btn-green">Push all recipes to Supabase →</button>
-      <button id="pull-btn" class="backup-btn backup-btn-outline" style="background:#fff;color:#2a6a2a;border:1.5px solid #2a6a2a">← Load recipes from Supabase</button>
+      <h4 style="color:#2a6a2a">☁️ GitHub sync</h4>
+      <p>Your recipes are stored in a private GitHub Gist — free forever, no inactivity issues.</p>
+      <button id="push-btn" class="backup-btn backup-btn-green">Push all to GitHub →</button>
+      <button id="pull-btn" class="backup-btn backup-btn-outline" style="background:#fff;color:#2a6a2a;border:1.5px solid #2a6a2a">← Load from GitHub</button>
     </div>
 
     <details style="margin-bottom:4px">
@@ -431,10 +440,11 @@
 
 <script>
 // ── Config ────────────────────────────────────────────────────────────────────
-var DB_KEY  = 'jojos-recipes-v1';
-var KEY_KEY = 'jojos-api-key';
-var SB_URL  = 'https://dvtjlaamqgyifkrtjmtb.supabase.co';
-var SB_KEY  = 'sb_publishable_9AXbdN_4od2Yx3Dq9cTyGg_YSwzOJ-v';
+var DB_KEY    = 'jojos-recipes-v1';
+var KEY_KEY   = 'jojos-api-key';
+var GIST_KEY  = 'jojos-gist-id';
+var GH_TOKEN  = localStorage.getItem('jojos-gh-token') || '';
+var GIST_FILE = 'jojos-recipes.json';
 
 // ── State ─────────────────────────────────────────────────────────────────────
 var apiKey      = '';
@@ -472,7 +482,7 @@ function saveAll() {
   var sorted = recipes.slice().sort(function(a,b){return a.name.localeCompare(b.name);});
   recipes = sorted;
   try { localStorage.setItem(DB_KEY,JSON.stringify(sorted)); } catch(e){}
-  recipes.forEach(function(r){ sbSave(r).catch(function(){}); });
+  gistSaveAll(sorted).catch(function(){});
 }
 function getSelected() {
   for(var i=0;i<recipes.length;i++) if(recipes[i].id===selectedId) return recipes[i];
@@ -485,20 +495,30 @@ function updateSelected(patch) {
   saveAll();
 }
 
-// ── Supabase ──────────────────────────────────────────────────────────────────
-function sbH(){ return {'Content-Type':'application/json','apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Prefer':'return=minimal'}; }
-function sbSave(r){
-  var clean = Object.assign({},r);
-  clean.photos=(r.photos||[null,null]).map(function(p){ return (p&&p.indexOf('data:')===0)?null:p; });
-  return fetch(SB_URL+'/rest/v1/recipes',{method:'POST',headers:Object.assign({},sbH(),{'Prefer':'resolution=merge-duplicates'}),body:JSON.stringify({id:r.id,data:clean,updated_at:new Date().toISOString()})});
+// ── GitHub Gist storage ───────────────────────────────────────────────────────
+function ghH(){ GH_TOKEN=localStorage.getItem('jojos-gh-token')||''; return {'Content-Type':'application/json','Authorization':'token '+GH_TOKEN,'Accept':'application/vnd.github.v3+json'}; }
+
+function gistSaveAll(list) {
+  var gistId = localStorage.getItem(GIST_KEY);
+  var body = JSON.stringify({ files:{ [GIST_FILE]:{ content:JSON.stringify(list) } } });
+  if (gistId) {
+    return fetch('https://api.github.com/gists/'+gistId, {method:'PATCH', headers:ghH(), body:body});
+  } else {
+    return fetch('https://api.github.com/gists', {method:'POST', headers:ghH(), body:JSON.stringify({description:"Jojo's Recipes",public:false,files:{ [GIST_FILE]:{content:JSON.stringify(list)}}})})
+      .then(function(r){return r.json();})
+      .then(function(data){ if(data.id){ localStorage.setItem(GIST_KEY,data.id); } });
+  }
 }
-function sbLoad(){
-  return fetch(SB_URL+'/rest/v1/recipes?select=*',{headers:sbH()})
+
+function gistLoad() {
+  var gistId = localStorage.getItem(GIST_KEY);
+  if (!gistId) return Promise.resolve([]);
+  return fetch('https://api.github.com/gists/'+gistId, {headers:ghH()})
     .then(function(r){return r.json();})
-    .then(function(rows){
-      if(!Array.isArray(rows)) throw new Error('Bad response');
-      return rows.map(function(row){
-        var r=row.data;
+    .then(function(data){
+      if(!data.files||!data.files[GIST_FILE]) return [];
+      var list = JSON.parse(data.files[GIST_FILE].content);
+      return list.map(function(r){
         if(!r.photos) r.photos=[null,null];
         if(r.done===undefined) r.done=false;
         if(!r.myNotes) r.myNotes='';
@@ -506,17 +526,12 @@ function sbLoad(){
       });
     });
 }
-function sbDelete(id){
-  return fetch(SB_URL+'/rest/v1/recipes?id=eq.'+encodeURIComponent(id),{method:'DELETE',headers:sbH()});
-}
-function sbUploadPhoto(recipeId,slotIdx,dataUrl){
-  var arr=dataUrl.split(','),bstr=atob(arr[1]),n=bstr.length,u8=new Uint8Array(n);
-  for(var i=0;i<n;i++) u8[i]=bstr.charCodeAt(i);
-  var blob=new Blob([u8],{type:'image/jpeg'});
-  var path=recipeId+'/'+slotIdx+'.jpg';
-  return fetch(SB_URL+'/storage/v1/object/recipe-photos/'+path,{method:'POST',headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'image/jpeg','x-upsert':'true'},body:blob})
-    .then(function(){ return SB_URL+'/storage/v1/object/public/recipe-photos/'+path+'?t='+Date.now(); });
-}
+
+// Keep these as no-ops so existing code doesn't break
+function sbSave(r){ return Promise.resolve(); }
+function sbLoad(){ return gistLoad(); }
+function sbDelete(id){ return Promise.resolve(); }
+function sbUploadPhoto(recipeId,slotIdx,dataUrl){ return Promise.resolve(dataUrl); }
 
 // ── API ───────────────────────────────────────────────────────────────────────
 var SYSTEM='You are a recipe extraction assistant. Return ONLY a valid JSON object, no markdown, no fences. Structure: {"name":"Recipe Name","category":"Main/Dessert/Breakfast/Snack/Soup/Salad","cuisine":"Italian/French/Asian/etc","servings":4,"prepTime":"15 min","cookTime":"30 min","ingredients":["item 1","item 2"],"steps":["First step","Second step"],"notes":"Optional original tips"}';
@@ -779,6 +794,12 @@ function initBackup(){
     if(apiKey){el.textContent='✓ Key saved ('+apiKey.slice(0,12)+'…)';el.style.color='#4a8a4a';}
     else{el.textContent='⚠️ No key saved';el.style.color='#c44a4a';}
   }
+  function updateGhStatus(){
+    var t=localStorage.getItem('jojos-gh-token')||'';
+    var el=document.getElementById('panel-gh-status');
+    if(t){el.textContent='✓ Token saved ('+t.slice(0,12)+'…)';el.style.color='#4a8a4a';}
+    else{el.textContent='⚠️ No token saved — GitHub sync won't work';el.style.color='#c44a4a';}
+  }
   function updateStorageBar(){
     try{
       var used=new Blob([localStorage.getItem(DB_KEY)||'']).size;
@@ -793,9 +814,18 @@ function initBackup(){
     }catch(e){}
   }
 
-  document.getElementById('nav-backup').onclick=function(){openPanel('backup');updateApiStatus();updateStorageBar();};
+  document.getElementById('nav-backup').onclick=function(){openPanel('backup');updateApiStatus();updateGhStatus();updateStorageBar();};
   document.getElementById('backup-close').onclick=function(){closePanel('backup');};
   document.getElementById('backup-overlay').onclick=function(){closePanel('backup');};
+
+  document.getElementById('panel-gh-save').onclick=function(){
+    var t=document.getElementById('panel-gh-input').value.trim(); if(!t) return;
+    localStorage.setItem('jojos-gh-token',t); GH_TOKEN=t;
+    document.getElementById('panel-gh-input').value='';
+    updateGhStatus();
+    showMsg('ok','✓ GitHub token saved! Syncing your recipes now…');
+    gistSaveAll(recipes).catch(function(e){showMsg('err','⚠️ Could not sync: '+e.message);});
+  };
 
   document.getElementById('panel-api-save').onclick=function(){
     var k=document.getElementById('panel-api-input').value.trim(); if(!k) return;
@@ -827,26 +857,26 @@ function initBackup(){
   };
 
   document.getElementById('push-btn').onclick=function(){
-    var btn=this; btn.textContent='Pushing…'; btn.disabled=true;
-    Promise.all(recipes.map(function(r){return sbSave(r);})).then(function(){
-      showMsg('ok','✓ '+recipes.length+' recipes pushed to Supabase!');
-      btn.textContent='Push all recipes to Supabase →'; btn.disabled=false;
-    }).catch(function(e){showMsg('err','⚠️ Error: '+e.message);btn.textContent='Push all recipes to Supabase →';btn.disabled=false;});
+    var btn=this; btn.textContent='Saving…'; btn.disabled=true;
+    gistSaveAll(recipes).then(function(){
+      showMsg('ok','✓ '+recipes.length+' recipes saved to GitHub!');
+      btn.textContent='Push all to GitHub →'; btn.disabled=false;
+    }).catch(function(e){showMsg('err','⚠️ Error: '+e.message);btn.textContent='Push all to GitHub →';btn.disabled=false;});
   };
 
   document.getElementById('pull-btn').onclick=function(){
     var btn=this; btn.textContent='Loading…'; btn.disabled=true;
-    sbLoad().then(function(sbR){
-      if(sbR.length===0){showMsg('err','⚠️ No recipes found in Supabase.');}
+    gistLoad().then(function(gR){
+      if(gR.length===0){showMsg('err','⚠️ No recipes found in GitHub.');}
       else{
         var byId={};recipes.forEach(function(r){byId[r.id]=r;});
-        sbR.forEach(function(r){var local=byId[r.id];if(local){r.photos=(r.photos||[null,null]).map(function(p,i){return p||(local.photos&&local.photos[i])||null;});}byId[r.id]=r;});
+        gR.forEach(function(r){var local=byId[r.id];if(local){r.photos=(r.photos||[null,null]).map(function(p,i){return p||(local.photos&&local.photos[i])||null;});}byId[r.id]=r;});
         recipes=Object.keys(byId).map(function(k){return byId[k];});
         saveAll(); renderList();
-        showMsg('ok','✓ Loaded '+sbR.length+' recipes from Supabase!');
+        showMsg('ok','✓ Loaded '+gR.length+' recipes from GitHub!');
       }
-      btn.textContent='← Load recipes from Supabase'; btn.disabled=false;
-    }).catch(function(e){showMsg('err','⚠️ Could not reach Supabase: '+e.message);btn.textContent='← Load recipes from Supabase';btn.disabled=false;});
+      btn.textContent='← Load from GitHub'; btn.disabled=false;
+    }).catch(function(e){showMsg('err','⚠️ Could not reach GitHub: '+e.message);btn.textContent='← Load from GitHub';btn.disabled=false;});
   };
 
   document.getElementById('do-export').onclick=function(){
@@ -875,25 +905,24 @@ function init(){
   recipes=loadRecipes();
   showScreen('list');
 
-  // Supabase sync in background
-  sbLoad().then(function(sbR){
-    if(sbR.length>0){
-      var byId={};recipes.forEach(function(r){byId[r.id]=r;});
-      sbR=sbR.map(function(r){var local=byId[r.id];if(local){r.photos=(r.photos||[null,null]).map(function(p,i){return p||(local.photos&&local.photos[i])||null;});}return r;});
-      sbR.forEach(function(r){byId[r.id]=r;});
-      var localOnly=[];Object.keys(byId).forEach(function(id){if(!sbR.find(function(r){return r.id===id;})){localOnly.push(byId[id]);}});
-      localOnly.forEach(function(r){sbSave(r).catch(function(){});});
-      recipes=Object.keys(byId).map(function(k){return byId[k];});
+  // Load from GitHub Gist in background
+  gistLoad().then(function(gistR){
+    if(gistR.length>0){
+      var byId={};
+      recipes.forEach(function(r){byId[r.id]=r;});
+      gistR.forEach(function(r){
+        var local=byId[r.id];
+        if(local){ r.photos=(r.photos||[null,null]).map(function(p,i){return p||(local.photos&&local.photos[i])||null;}); }
+        byId[r.id]=r;
+      });
+      recipes=Object.keys(byId).map(function(k){return byId[k];}).sort(function(a,b){return a.name.localeCompare(b.name);});
       try{localStorage.setItem(DB_KEY,JSON.stringify(recipes));}catch(e){}
       renderList();
-    } else {
-      recipes.forEach(function(r){sbSave(r).catch(function(){});});
+    } else if(recipes.length>0) {
+      // Push local recipes to Gist
+      gistSaveAll(recipes).catch(function(){});
     }
-    // Heartbeat ping
-    fetch(SB_URL+'/rest/v1/heartbeat',{method:'POST',headers:Object.assign({},sbH(),{'Prefer':'resolution=merge-duplicates'}),body:JSON.stringify({id:'ping',ts:new Date().toISOString()})}).catch(function(){});
-  }).catch(function(){
-    fetch(SB_URL+'/rest/v1/recipes?limit=1',{headers:sbH()}).catch(function(){});
-  });
+  }).catch(function(){});
 
   // Header back button
   document.getElementById('header-btn').onclick=function(){showScreen('list');previewRecipe=null;document.getElementById('add-error').style.display='none';};
