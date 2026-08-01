@@ -818,7 +818,8 @@ function initBackup(){
   document.getElementById('backup-close').onclick=function(){closePanel('backup');};
   document.getElementById('backup-overlay').onclick=function(){closePanel('backup');};
 
-  document.getElementById('panel-gh-save').onclick=function(){
+  var ghSaveBtn = document.getElementById('panel-gh-save');
+  if(ghSaveBtn) ghSaveBtn.onclick=function(){
     var t=document.getElementById('panel-gh-input').value.trim(); if(!t) return;
     localStorage.setItem('jojos-gh-token',t); GH_TOKEN=t;
     document.getElementById('panel-gh-input').value='';
@@ -827,7 +828,8 @@ function initBackup(){
     gistSaveAll(recipes).catch(function(e){showMsg('err','⚠️ Could not sync: '+e.message);});
   };
 
-  document.getElementById('panel-api-save').onclick=function(){
+  var apiSaveBtn = document.getElementById('panel-api-save');
+  if(apiSaveBtn) apiSaveBtn.onclick=function(){
     var k=document.getElementById('panel-api-input').value.trim(); if(!k) return;
     localStorage.setItem(KEY_KEY,k); apiKey=k;
     document.getElementById('panel-api-input').value='';
@@ -1035,7 +1037,9 @@ function doURLExtract(){
   });
 }
 
-init();
+try { init(); } catch(e) {
+  document.getElementById('list-body').innerHTML = '<div style="padding:24px;color:#c00;font-size:14px;font-family:monospace;white-space:pre-wrap">JS ERROR in init():\n'+e.message+'\n'+e.stack+'</div>';
+}
 </script>
 </body>
 </html>
